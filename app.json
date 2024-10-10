@@ -1,0 +1,96 @@
+{
+  "expo": {
+    "name": "suno-music-ai",
+    "slug": "suno-ma",
+    "version": "0.1.6",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
+    },
+    "android": {
+  
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "*.suno.com",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "*.suno.ai",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "*.suno.ma",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "suno",
+              "host": "*"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "permissions": [
+        "android.permission.WAKE_LOCK",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "backgroundModes": [
+        "heartbeat"
+      ],
+      "entryPoint": {
+        "android": "AppEntry"
+      },
+      "backgroundFetch": {
+        "enabled": true
+      },
+      "audioBackgroundMode": "playable",
+      "package": "com.wino.suno.ma"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Suno to access your microphone.",
+          "android": {
+            "backgroundMode": "playback"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "93de0605-32cc-4278-aae0-182c0b37d15f"
+      }
+    }
+  }
+}
