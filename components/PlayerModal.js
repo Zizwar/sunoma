@@ -166,12 +166,14 @@ const PlayerModal = ({ visible, onClose }) => {
 
   const renderContent = () => (
     <>
+{isIOS &&
      <View style={styles.thumbnailContainer}>
         <Image 
           source={{ uri: currentSong.image_url }} 
           style={styles.thumbnail}
         />
       </View>
+}
 
       <View style={styles.infoContainer}>
         <Text style={styles.title} numberOfLines={1}>{currentSong.title}</Text>

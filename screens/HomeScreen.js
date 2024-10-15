@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect , useCallback} from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { Text, Card, Button, Icon, useTheme } from 'react-native-elements';
 import { AudioContext } from '../App';
@@ -6,6 +6,7 @@ import SongListItem from '../components/SongListItem';
 import SongDetailsModal from '../components/SongDetailsModal';
 import { fetchSongs } from '../utils/fetchSongs';
 import { useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { getSongMetadata } from '../utils/fetchSongs';
 const HomeScreen = ({ navigation }) => {
@@ -18,6 +19,21 @@ const HomeScreen = ({ navigation }) => {
 const route = useRoute();
   const songId = route.params?.id;
   const { setCurrentSong, setMiniPlayerVisible, togglePlayerModal } = useContext(AudioContext);
+
+
+useFocusEffect(
+    useCallback(() => {
+      if (route.params?.refresh) {
+        loadSongs();
+        // إزالة معلمة التحديث بعد استخدامها
+        navigation.setParams({ refresh: undefined });
+      }
+    }, [route.params?.refresh, loadSongs, navigation])
+  );
+
+  useEffect(() => {
+    loadSongs();
+  }, [loadSongs]);
 
   useEffect(() => {
     if (songId) {
@@ -35,17 +51,19 @@ const route = useRoute();
     loadSongs();
   }, []);
 
-  const loadSongs = async () => {
+  const loadSongs = useCallback(async () => {
     try {
       setRefreshing(true);
       const data = await fetchSongs();
       setSongs(data);
-      setRefreshing(false);
     } catch (error) {
       console.error('Error loading songs:', error);
+      Alert.alert(t('error'), t('errorLoadingSongs'));
+    } finally {
       setRefreshing(false);
     }
-  };
+  }, []);
+
 
   const handleRefresh = () => {
     loadSongs();

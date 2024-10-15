@@ -58,12 +58,12 @@ const CreateSongScreen = ({ navigation, route, isModal = false, onClose }) => {
             try {
               const result = await generateSong(requestData);
               Alert.alert(t('success'), t('songGeneratedSuccess'));
-               //  await showInterstitialAd();
+              
+              // تحديث الشاشة الرئيسية وتوجيه المستخدم إليها
               if (isModal && onClose) {
                 onClose();
-              } else {
-                navigation.navigate('Library');
               }
+              navigation.navigate('Home', { refresh: true });
             } catch (error) {
               console.error('Error generating song:', error);
               Alert.alert(t('error'), t('songGenerationFailed'));
@@ -75,7 +75,6 @@ const CreateSongScreen = ({ navigation, route, isModal = false, onClose }) => {
       ]
     );
   };
-
   const handleInputSubmit = async () => {
     if (inputText300.length > 300) {
       Alert.alert(t('error'), t('inputTooLong'));
