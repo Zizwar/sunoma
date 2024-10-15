@@ -1,5 +1,5 @@
-import React, { useContext, useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useContext, useState, useEffect, useRef } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Animated, Platform } from 'react-native';
 import { useTheme } from 'react-native-elements';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
@@ -8,11 +8,11 @@ import { toggleFavorite, getFavorites } from '../utils/favoriteUtils';
 import { downloadSong, isSongDownloaded } from '../utils/offlineUtils';
 import SongDetailsModal from './SongDetailsModal';
 import * as Sharing from 'expo-sharing';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
-const { width, height } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const PlayerModal = ({ visible, onClose }) => {
-
   const { theme } = useTheme();
   const { 
     currentSong, 
@@ -23,16 +23,28 @@ const PlayerModal = ({ visible, onClose }) => {
     handleNext, 
     handlePrevious,
     setPosition,
-    setRepeatMode,
-    toggleShuffle,
-    repeatMode,
-    isShuffled
   } = useContext(AudioContext);
 
   const [isFavoriteSong, setIsFavoriteSong] = useState(false);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
-
   const [isDownloaded, setIsDownloaded] = useState(false);
+  const [orientation, setOrientation] = useState('portrait');
+  const translateX = useRef(new Animated.Value(0)).current;
+  const sliderRef = useRef(null);
+
+  useEffect(() => {
+    const updateOrientation = () => {
+      const { width, height } = Dimensions.get('window');
+      setOrientation(width > height ? 'landscape' : 'portrait');
+    };
+
+    Dimensions.addEventListener('change', updateOrientation);
+    updateOrientation();
+
+    return () => {
+      Dimensions.removeEventListener('change', updateOrientation);
+    };
+  }, []);
 
   useEffect(() => {
     if (currentSong) {
@@ -53,10 +65,8 @@ const PlayerModal = ({ visible, onClose }) => {
       try {
         await downloadSong(currentSong);
         setIsDownloaded(true);
-        // You might want to show a success message here
       } catch (error) {
         console.error('Error downloading song:', error);
-        // Show an error message to the user
       }
     }
   };
@@ -87,14 +97,16 @@ const PlayerModal = ({ visible, onClose }) => {
   const handleShare = async () => {
     if (currentSong && currentSong.audio_url) {
       try {
-        await Sharing.shareAsync(currentSong.audio_url);
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(currentSong.audio_url);
+        } else {
+          console.log('Sharing is not available on this platform');
+        }
       } catch (error) {
         console.error('Error sharing:', error);
       }
     }
   };
-
-  if (!visible || !currentSong) return null;
 
   const formatTime = (milliseconds) => {
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -102,6 +114,44 @@ const PlayerModal = ({ visible, onClose }) => {
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
+
+  const onGestureEvent = Animated.event(
+    [{ nativeEvent: { translationX: translateX } }],
+    { useNativeDriver: true }
+  );
+
+  const onHandlerStateChange = event => {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      const { translationX } = event.nativeEvent;
+      if (translationX > 100) {
+        handlePrevious();
+      } else if (translationX < -100) {
+        handleNext();
+      }
+      Animated.spring(translateX, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7
+      }).start();
+    }
+  };
+
+  const handleSliderChange = (value) => {
+    if (sliderRef.current) {
+      clearTimeout(sliderRef.current);
+    }
+    setPosition(value);
+    sliderRef.current = setTimeout(() => {
+      // Actually seek to the position after a short delay
+      // This prevents excessive seeking while the user is still sliding
+      setPosition(value);
+    }, 100);
+  };
+
+  if (!visible || !currentSong) return null;
+
+  const imageSize = orientation === 'portrait' ? SCREEN_WIDTH - 80 : SCREEN_HEIGHT - 200;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -116,7 +166,21 @@ const PlayerModal = ({ visible, onClose }) => {
         <Ionicons name="information-circle-outline" size={30} color="#fff" />
       </TouchableOpacity>
       
-      <Image source={{ uri: currentSong.image_url }} style={styles.albumArt} />
+      <PanGestureHandler
+        onGestureEvent={onGestureEvent}
+        onHandlerStateChange={onHandlerStateChange}
+      >
+        <Animated.View style={[
+          styles.albumArtContainer,
+          { transform: [{ translateX }] },
+          orientation === 'landscape' && styles.landscapeAlbumArt
+        ]}>
+          <Image 
+            source={{ uri: currentSong.image_url }} 
+            style={[styles.albumArt, { width: imageSize, height: imageSize }]} 
+          />
+        </Animated.View>
+      </PanGestureHandler>
       
       <View style={styles.infoContainer}>
         <Text style={styles.title} numberOfLines={1}>{currentSong.title}</Text>
@@ -129,7 +193,7 @@ const PlayerModal = ({ visible, onClose }) => {
           minimumValue={0}
           maximumValue={duration}
           value={position}
-          onValueChange={setPosition}
+          onValueChange={handleSliderChange}
           minimumTrackTintColor="#fff"
           maximumTrackTintColor="rgba(255,255,255,0.3)"
           thumbTintColor="#fff"
@@ -152,19 +216,9 @@ const PlayerModal = ({ visible, onClose }) => {
         </TouchableOpacity>
       </View>
       
-       <View style={styles.bottomContainer}>
+      <View style={styles.bottomContainer}>
         <TouchableOpacity onPress={handleToggleFavorite}>
           <Ionicons name={isFavoriteSong ? "heart" : "heart-outline"} size={25} color="#fff" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={toggleShuffle}>
-          <Ionicons name="shuffle" size={25} color={isShuffled ? "#1DB954" : "#fff"} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setRepeatMode(repeatMode === 'none' ? 'all' : repeatMode === 'all' ? 'one' : 'none')}>
-          <Ionicons 
-            name={repeatMode === 'one' ? "repeat-one" : "repeat"} 
-            size={25} 
-            color={repeatMode !== 'none' ? "#1DB954" : "#fff"} 
-          />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleShare}>
           <Ionicons name="share-outline" size={25} color="#fff" />
@@ -184,7 +238,6 @@ const PlayerModal = ({ visible, onClose }) => {
   );
 };
 
-
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
@@ -202,18 +255,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 40,
     left: 20,
+    zIndex: 1,
   },
   infoButton: {
     position: 'absolute',
     top: 40,
     right: 20,
+    zIndex: 1,
+  },
+  albumArtContainer: {
+    alignSelf: 'center',
+    marginTop: 60,
+  },
+  landscapeAlbumArt: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
   },
   albumArt: {
-    width: width - 80,
-    height: width - 80,
-    alignSelf: 'center',
     borderRadius: 10,
-    marginTop: 60,
   },
   infoContainer: {
     alignItems: 'center',
@@ -257,7 +318,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     marginBottom: 30,
   },
 });

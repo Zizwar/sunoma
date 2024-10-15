@@ -6,7 +6,7 @@ import { ThemeProvider as RNEThemeProvider, Icon } from 'react-native-elements';
 import { I18nextProvider } from 'react-i18next';
 import { useKeepAwake } from 'expo-keep-awake';
 import * as SplashScreen from 'expo-splash-screen';
-
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import i18n from './src/i18n';
 import DrawerContent from './navigation/DrawerContent';
 import AudioManager from './utils/AudioManager';
@@ -103,6 +103,10 @@ const AppContent = () => {
     await AudioManager.playPrevious();
   }, []);
 
+const handleSetPosition = useCallback(async (newPosition) => {
+    await AudioManager.setPosition(newPosition);
+  }, []);
+
   const handleSongSelect = useCallback(async (song, playlist, index) => {
     await AudioManager.handleSongSelect(song, playlist, index);
     setMiniPlayerVisible(true);
@@ -154,6 +158,7 @@ const AppContent = () => {
             handlePlayPause,
             handleNext,
             handlePrevious,
+setPosition: handleSetPosition,
             handleSongSelect,
             miniPlayerVisible,
             setMiniPlayerVisible,
@@ -162,6 +167,7 @@ const AppContent = () => {
             togglePlayerModal,
             isWebAudioMode,
           }}>
+          <GestureHandlerRootView style={{ flex: 1 }}>
           <NavigationContainer linking={linking}>
             <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
               <Drawer.Navigator
@@ -221,6 +227,7 @@ const AppContent = () => {
             visible={playerModalVisible}
             onClose={togglePlayerModal}
           />
+     </GestureHandlerRootView>    
           {isWebAudioMode && (
             <WebAudioPlayer onReady={handleWebViewReady} />
           )}
