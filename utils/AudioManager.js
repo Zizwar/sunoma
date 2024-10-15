@@ -3,7 +3,7 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import * as Notifications from 'expo-notifications';
 import * as FileSystem from 'expo-file-system';
-
+import { Alert } from 'react-native';
 const BACKGROUND_AUDIO_TASK = 'BACKGROUND_AUDIO_TASK';
 
 class AudioManager {
@@ -22,35 +22,50 @@ class AudioManager {
     this.isWebAudioMode = false;
     this.loadAudio = this.loadAudio.bind(this);
     this.onPlaybackStatusUpdate = this.onPlaybackStatusUpdate.bind(this);
-    
   }
 
   setWebViewRef(ref) {
     this.webViewRef = ref;
   }
 
-  setWebAudioMode(isWebAudioMode) {
+  async isLocalAudio(audioUrl) {
+
+return await this.isLocalUri(audioUrl) 
+       
+
+  }
+
+  async setWebAudioMode(isWebAudioMode) {
     if (this.isWebAudioMode !== isWebAudioMode) {
+      const previousMode = this.isWebAudioMode;
       this.isWebAudioMode = isWebAudioMode;
-      if (this.isWebAudioMode) {
-        this.unloadCurrentAudio();
-        if (this.webViewRef?.current && this.playlist.length > 0) {
-          const playlistUrls = this.playlist.map(song => song.audio_url);
-          this.webViewRef.current.injectJavaScript(`
-            if (typeof setPlaylist === 'function') {
-              setPlaylist(${JSON.stringify(playlistUrls)});
-              ${this.currentSong ? `changeSong("${this.currentSong.audio_url}");` : ''}
-              ${this.isPlaying ? 'playSong();' : ''}
-            }
-            true;
-          `);
-        }
-      } else {
-        this.stopWebAudio();
+      if (this.currentSong) {
+        await this.checkAndSwitchAudioMode(this.currentSong.audio_url);
       }
-      this.emitChange();
+      if (this.isWebAudioMode !== previousMode) {
+        this.emitChange();
+      }
     }
   }
+
+  async checkAndSwitchAudioMode(audioUrl) {
+    const isLocal = await this.isLocalAudio(audioUrl);
+    if (isLocal && this.isWebAudioMode) {
+      this.isWebAudioMode = false;
+      Alert.alert(
+        "تم التبديل إلى الوضع العادي",
+        "تم التبديل تلقائياً إلى وضع التشغيل العادي لأن المقطع الصوتي مخزن محلياً."
+      );
+      await this.loadAudio(this.currentSong);
+    } else if (!isLocal && this.isWebAudioMode) {
+      await this.unloadCurrentAudio();
+      await this.loadWebAudio(this.currentSong);
+    } else {
+      await this.loadAudio(this.currentSong);
+    }
+  }
+
+  
 
   addListener(listener) {
     this.listeners.add(listener);
@@ -90,16 +105,18 @@ class AudioManager {
     await this.play();
   }
 
-  
-
-isLocalUri(uri) {
+  isLocalUri(uri) {
     if (!uri) return false;
     return uri.startsWith(FileSystem.documentDirectory) || uri.startsWith('file://');
   }
 
   async loadAudio(song) {
-    try {
-      if (this.sound) {
+    
+
+      
+try {
+
+if (this.sound) {
         await this.sound.unloadAsync();
       }
 
@@ -132,7 +149,9 @@ isLocalUri(uri) {
     } catch (error) {
       console.error('Error loading audio:', error);
     }
+
   }
+
   onPlaybackStatusUpdate(status) {
     if (status.isLoaded) {
       this.position = status.positionMillis;
@@ -194,22 +213,6 @@ isLocalUri(uri) {
     }
   }
 
-
-  
-  onPlaybackStatusUpdate = (status) => {
-    if (status.isLoaded) {
-      this.position = status.positionMillis;
-      this.duration = status.durationMillis;
-      this.isPlaying = status.isPlaying;
-
-      if (status.didJustFinish) {
-        this.handleSongEnd();
-      }
-
-      this.emitChange();
-    }
-  }
-
   async handleSongEnd() {
     switch (this.repeatMode) {
       case 'one':
@@ -230,7 +233,6 @@ isLocalUri(uri) {
   }
 
   async updateNotification() {
-  	return;
     if (this.currentSong) {
       await Notifications.scheduleNotificationAsync({
         content: {

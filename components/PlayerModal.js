@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Animated, Platform } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Animated, Platform, SafeAreaView } from 'react-native';
 import { useTheme } from 'react-native-elements';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
@@ -8,9 +8,11 @@ import { toggleFavorite, getFavorites } from '../utils/favoriteUtils';
 import { downloadSong, isSongDownloaded } from '../utils/offlineUtils';
 import SongDetailsModal from './SongDetailsModal';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const isIOS = Platform.OS === 'ios';
 
 const PlayerModal = ({ visible, onClose }) => {
   const { theme } = useTheme();
@@ -22,7 +24,7 @@ const PlayerModal = ({ visible, onClose }) => {
     handlePlayPause, 
     handleNext, 
     handlePrevious,
-    setPosition,
+    setPosition
   } = useContext(AudioContext);
 
   const [isFavoriteSong, setIsFavoriteSong] = useState(false);
@@ -98,7 +100,18 @@ const PlayerModal = ({ visible, onClose }) => {
     if (currentSong && currentSong.audio_url) {
       try {
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(currentSong.audio_url);
+          const localUri = FileSystem.documentDirectory + 'temp_audio.mp3';
+          const downloadResumable = FileSystem.createDownloadResumable(
+            currentSong.audio_url,
+            localUri,
+            {}
+          );
+          
+          const { uri } = await downloadResumable.downloadAsync();
+          
+          await Sharing.shareAsync(uri);
+          
+          await FileSystem.deleteAsync(uri);
         } else {
           console.log('Sharing is not available on this platform');
         }
@@ -143,45 +156,23 @@ const PlayerModal = ({ visible, onClose }) => {
     }
     setPosition(value);
     sliderRef.current = setTimeout(() => {
-      // Actually seek to the position after a short delay
-      // This prevents excessive seeking while the user is still sliding
       setPosition(value);
     }, 100);
   };
 
   if (!visible || !currentSong) return null;
 
-  const imageSize = orientation === 'portrait' ? SCREEN_WIDTH - 80 : SCREEN_HEIGHT - 200;
+  const imageSize = orientation === 'portrait' ? SCREEN_WIDTH : SCREEN_HEIGHT * 0.6;
 
-  return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Image source={{ uri: currentSong.image_url }} style={styles.backgroundImage} blurRadius={20} />
-      <View style={styles.overlay} />
-      
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Ionicons name="chevron-down" size={30} color="#fff" />
-      </TouchableOpacity>
+  const renderContent = () => (
+    <>
+     <View style={styles.thumbnailContainer}>
+        <Image 
+          source={{ uri: currentSong.image_url }} 
+          style={styles.thumbnail}
+        />
+      </View>
 
-      <TouchableOpacity style={styles.infoButton} onPress={() => setDetailsModalVisible(true)}>
-        <Ionicons name="information-circle-outline" size={30} color="#fff" />
-      </TouchableOpacity>
-      
-      <PanGestureHandler
-        onGestureEvent={onGestureEvent}
-        onHandlerStateChange={onHandlerStateChange}
-      >
-        <Animated.View style={[
-          styles.albumArtContainer,
-          { transform: [{ translateX }] },
-          orientation === 'landscape' && styles.landscapeAlbumArt
-        ]}>
-          <Image 
-            source={{ uri: currentSong.image_url }} 
-            style={[styles.albumArt, { width: imageSize, height: imageSize }]} 
-          />
-        </Animated.View>
-      </PanGestureHandler>
-      
       <View style={styles.infoContainer}>
         <Text style={styles.title} numberOfLines={1}>{currentSong.title}</Text>
         <Text style={styles.artist} numberOfLines={1}>{currentSong.artist}</Text>
@@ -227,6 +218,67 @@ const PlayerModal = ({ visible, onClose }) => {
           <Ionicons name={isDownloaded ? "cloud-done" : "cloud-download"} size={25} color="#fff" />
         </TouchableOpacity>
       </View>
+    </>
+  );
+
+  if (isIOS) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Image source={{ uri: currentSong.image_url }} style={styles.backgroundImage} blurRadius={20} />
+        <View style={styles.overlay} />
+        
+        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <Ionicons name="chevron-down" size={30} color="#fff" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.infoButton} onPress={() => setDetailsModalVisible(true)}>
+          <Ionicons name="information-circle-outline" size={30} color="#fff" />
+        </TouchableOpacity>
+
+        <View style={styles.contentContainer}>
+          {renderContent()}
+        </View>
+
+        <SongDetailsModal
+          visible={detailsModalVisible}
+          onClose={() => setDetailsModalVisible(false)}
+          song={currentSong}
+          theme={theme}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Image source={{ uri: currentSong.image_url }} style={styles.backgroundImage} blurRadius={20} />
+      <View style={styles.overlay} />
+      
+      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+        <Ionicons name="chevron-down" size={30} color="#fff" />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.infoButton} onPress={() => setDetailsModalVisible(true)}>
+        <Ionicons name="information-circle-outline" size={30} color="#fff" />
+      </TouchableOpacity>
+      
+      <PanGestureHandler
+        onGestureEvent={onGestureEvent}
+        onHandlerStateChange={onHandlerStateChange}
+      >
+        <Animated.View style={[
+          styles.albumArtContainer,
+          { transform: [{ translateX }] },
+          orientation === 'landscape' && styles.landscapeAlbumArt
+        ]}>
+          <Image 
+            source={{ uri: currentSong.image_url }} 
+            style={[styles.albumArt, { width: imageSize, height: imageSize }]} 
+          />
+        </Animated.View>
+      </PanGestureHandler>
+      
+      {renderContent()}
 
       <SongDetailsModal
         visible={detailsModalVisible}
@@ -242,10 +294,11 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'space-between',
-    padding: 20,
   },
   backgroundImage: {
     ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -276,9 +329,14 @@ const styles = StyleSheet.create({
   albumArt: {
     borderRadius: 10,
   },
+  contentContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: 20,
+  },
   infoContainer: {
     alignItems: 'center',
-    marginTop: 20,
+    marginBottom: 10,
   },
   title: {
     fontSize: 24,
@@ -294,6 +352,7 @@ const styles = StyleSheet.create({
   },
   sliderContainer: {
     width: '100%',
+    marginBottom: 20,
   },
   slider: {
     width: '100%',
@@ -312,6 +371,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 20,
   },
   playPauseButton: {
     marginHorizontal: 40,
@@ -321,6 +381,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginBottom: 30,
   },
+thumbnailContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  thumbnail: {
+    width: 250,
+    height: 250,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+
 });
 
 export default PlayerModal;

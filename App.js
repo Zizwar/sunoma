@@ -103,7 +103,7 @@ const AppContent = () => {
     await AudioManager.playPrevious();
   }, []);
 
-const handleSetPosition = useCallback(async (newPosition) => {
+  const handleSetPosition = useCallback(async (newPosition) => {
     await AudioManager.setPosition(newPosition);
   }, []);
 
@@ -124,6 +124,19 @@ const handleSetPosition = useCallback(async (newPosition) => {
     setWebViewRef(ref);
     AudioManager.setWebViewRef(ref);
   }, []);
+
+  /*const toggleWebAudioMode = useCallback(() => {
+    setIsWebAudioMode((prev) => !prev);
+  }, []);
+*/
+
+  const toggleWebAudioMode = async () => {
+    const newMode = !isWebAudioMode;
+    setIsWebAudioMode(newMode);
+    if (audioState.currentSong) {
+      await AudioManager.checkAndSwitchAudioMode(audioState.currentSong.audio_url);
+    }
+  };
 
   const lightTheme = {
     colors: {
@@ -158,7 +171,7 @@ const handleSetPosition = useCallback(async (newPosition) => {
             handlePlayPause,
             handleNext,
             handlePrevious,
-setPosition: handleSetPosition,
+            setPosition: handleSetPosition,
             handleSongSelect,
             miniPlayerVisible,
             setMiniPlayerVisible,
@@ -166,68 +179,83 @@ setPosition: handleSetPosition,
             playerModalVisible,
             togglePlayerModal,
             isWebAudioMode,
+            toggleWebAudioMode,
           }}>
           <GestureHandlerRootView style={{ flex: 1 }}>
-          <NavigationContainer linking={linking}>
-            <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-              <Drawer.Navigator
-                drawerContent={(props) => <DrawerContent {...props} />}
-                screenOptions={({ navigation }) => ({
-                  headerShown: true,
-                  headerStyle: {
-                    backgroundColor: isDarkMode ? '#121212' : '#ffffff',
-                  },
-                  headerTintColor: isDarkMode ? '#ffffff' : '#000000',
-                  headerLeft: () => (
-                    <TouchableOpacity onPress={() => navigation.toggleDrawer()} style={{ marginLeft: 15 }}>
-                      <Icon name="menu" type="material" size={24} color={isDarkMode ? '#ffffff' : '#000000'} />
-                    </TouchableOpacity>
-                  ),
-                  headerRight: () => (
-                    <View style={{ flexDirection: 'row' }}>
-                      <TouchableOpacity onPress={() => navigation.navigate('Explore')} style={{ marginRight: 15 }}>
-                        <Icon name="search" type="material" size={24} color={isDarkMode ? '#ffffff' : '#000000'} />
+            <NavigationContainer linking={linking}>
+              <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+                <Drawer.Navigator
+                  drawerContent={(props) => <DrawerContent {...props} />}
+                  screenOptions={({ navigation }) => ({
+                    headerShown: true,
+                    headerStyle: {
+                      backgroundColor: isDarkMode ? '#121212' : '#ffffff',
+                    },
+                    headerTintColor: isDarkMode ? '#ffffff' : '#000000',
+                    headerLeft: () => (
+                      <TouchableOpacity onPress={() => navigation.toggleDrawer()} style={{ marginLeft: 15 }}>
+                        <Icon name="menu" type="material" size={24} color={isDarkMode ? '#ffffff' : '#000000'} />
                       </TouchableOpacity>
-                      {audioState.currentSong && (
-                        <TouchableOpacity
-                          onPress={toggleMiniPlayer}
-                          style={{ marginRight: 15 }}>
+                    ),
+                    headerRight: () => (
+                      <View style={{ flexDirection: 'row' }}>
+                        <TouchableOpacity onPress={() => navigation.navigate('Explore')} style={{ marginRight: 15 }}>
+                          <Icon name="search" type="material" size={24} color={isDarkMode ? '#ffffff' : '#000000'} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={toggleWebAudioMode} style={{ marginRight: 15 }}>
                           <Icon
-                            name="headset"
+                            name= "speaker"
                             type="material"
                             size={24}
                             color={
-                              miniPlayerVisible
-                                ? '#1DB954'
-                                : isDarkMode
-                                ? '#ffffff'
-                                : '#000000'
-                            }
+                                isWebAudioMode
+                                  ? '#1DB954'
+                                  : isDarkMode
+                                  ? '#ffffff'
+                                  : '#000000'
+                              }
                           />
                         </TouchableOpacity>
-                      )}
-                    </View>
-                  ),
-                })}>
-                <Drawer.Screen name="MainTabs" component={MainTabs} options={{ title: 'Suno' }} />
-                <Drawer.Screen name="Download" component={DownloadScreen} />
-                <Drawer.Screen name="Favorites" component={FavoritesScreen} />
-                <Drawer.Screen name="Settings" component={SettingsScreen} />
-                <Drawer.Screen name="HelpSupport" component={HelpSupportScreen} />
-                <Drawer.Screen name="Offline" component={OfflineScreen} />
-              </Drawer.Navigator>
-              {audioState.currentSong && miniPlayerVisible && (
-                <View style={styles.miniPlayerContainer}>
-                  <MiniPlayer />
-                </View>
-              )}
-            </View>
-          </NavigationContainer>
-          <PlayerModal
-            visible={playerModalVisible}
-            onClose={togglePlayerModal}
-          />
-     </GestureHandlerRootView>    
+                        {audioState.currentSong && (
+                          <TouchableOpacity
+                            onPress={toggleMiniPlayer}
+                            style={{ marginRight: 15 }}>
+                            <Icon
+                              name="headset"
+                              type="material"
+                              size={24}
+                              color={
+                                miniPlayerVisible
+                                  ? '#1DB954'
+                                  : isDarkMode
+                                  ? '#ffffff'
+                                  : '#000000'
+                              }
+                            />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ),
+                  })}>
+                  <Drawer.Screen name="MainTabs" component={MainTabs} options={{ title: 'Suno' }} />
+                  <Drawer.Screen name="Download" component={DownloadScreen} />
+                  <Drawer.Screen name="Favorites" component={FavoritesScreen} />
+                  <Drawer.Screen name="Settings" component={SettingsScreen} />
+                  <Drawer.Screen name="HelpSupport" component={HelpSupportScreen} />
+                  <Drawer.Screen name="Offline" component={OfflineScreen} />
+                </Drawer.Navigator>
+                {audioState.currentSong && miniPlayerVisible && (
+                  <View style={styles.miniPlayerContainer}>
+                    <MiniPlayer />
+                  </View>
+                )}
+              </View>
+            </NavigationContainer>
+            <PlayerModal
+              visible={playerModalVisible}
+              onClose={togglePlayerModal}
+            />
+          </GestureHandlerRootView>
           {isWebAudioMode && (
             <WebAudioPlayer onReady={handleWebViewReady} />
           )}
