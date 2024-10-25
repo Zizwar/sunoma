@@ -1,5 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
+const BASE_URL = "https://studio-api.suno.ai";
+const MAX_RETRY_TIMES = 5;
+
+// Simple logging for requests and responses only
+const logRequest = (method, url, headers, body) => {
+  console.warn('🌐 Request:', { method, url, headers, body });
+};
+
+const logResponse = (url, data) => {
+  console.log('📥 Response:', { url, data });
+};
+
+// Get active settings with bearer token
 const getActiveSettings = async () => {
   try {
     const settings = await AsyncStorage.getItem('settings');
@@ -18,72 +32,113 @@ const getActiveSettings = async () => {
   }
 };
 
+const getDefaultHeaders = (jwt = null) => ({
+  'Accept': 'application/json',
+  'Content-Type': 'application/json',
+  'User-Agent': Platform.select({
+    android: 'okhttp/4.9.2',
+    ios: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15'
+  }),
+  ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {})
+});
 
-
-// Updated function to get fresh JWT from Clerk or use stored JWT
 const getFreshJWT = async () => {
   try {
-    // Step 1: Fetch the Clerk session
-    const clerkResponse = await fetch('https://clerk.suno.com/v1/client?_clerk_js_version=4.73.8');
-    const clerkData = await clerkResponse.json();
+    // First get the session ID
+    const clerkResponse = await fetch(
+      'https://clerk.suno.com/v1/client?_clerk_js_version=4.73.8',
+      { headers: getDefaultHeaders() }
+    );
     
-    // Extract the session ID
-    const sessionId = clerkData.response.sessions[0].id;
-const freshJWT = clerkData.response.sessions[0].last_active_token.jwt;
-    // Step 2: Use the session ID to fetch user data and get fresh JWT
-    /*
-    const touchResponse = await fetch(`https://clerk.suno.com/v1/client/sessions/${sessionId}/touch?_clerk_js_version=5.26.1`, {
-      method: 'POST',
-    });
-    const touchData = await touchResponse.json();
-    
-    // Extract JWT
-    const freshJWT = touchData.response.last_active_token.jwt;
-  */  
-    // Store the fresh JWT
-    await AsyncStorage.setItem('@jwt', freshJWT);
-    
-    return freshJWT;
-  } catch (error) {
-    console.error('Error fetching fresh JWT:', error);
-    
-    // If fetching fresh JWT fails, try to get the stored JWT
-    const storedJWT = await AsyncStorage.getItem('@jwt');
-    if (storedJWT) {
-      console.info('Using stored JWT');
-      return storedJWT;
+    if (!clerkResponse.ok) {
+      throw new Error(`Clerk response not OK: ${clerkResponse.status}`);
     }
     
+    const clerkData = await clerkResponse.json();
+    const sessionId = clerkData.response.sessions[0].id;
+    await AsyncStorage.setItem('sessionId', sessionId);
+    
+    // Then get the JWT
+    const touchResponse = await fetch(
+      `https://clerk.suno.com/v1/client/sessions/${sessionId}/touch?_clerk_js_version=5.26.1`,
+      {
+        method: 'POST',
+        headers: getDefaultHeaders()
+      }
+    );
+    
+    if (!touchResponse.ok) {
+      throw new Error(`Touch response not OK: ${touchResponse.status}`);
+    }
+    
+    const touchData = await touchResponse.json();
+    const jwt = touchData.response.last_active_token.jwt;
+    
+    await AsyncStorage.setItem('@jwt', jwt);
+    return jwt;
+    
+  } catch (error) {
+    console.error('Error getting fresh JWT:', error);
+    const storedJWT = await AsyncStorage.getItem('@jwt');
+    if (storedJWT) return storedJWT;
     return null;
   }
 };
 
-const appendAuthParams = async (url, settings) => {
-  const params = new URLSearchParams();
-  if (settings.sess) params.append('sess', settings.sess);
-  if (settings.cookie) params.append('cookie', settings.cookie);
-  
-  // Get fresh JWT or use stored JWT
+const makeRequest = async (url, options = {}) => {
+  const settings = await getActiveSettings();
   const jwt = await getFreshJWT();
-  if (jwt) {
-    params.append('jwt', jwt);
-  }
+  const headers = getDefaultHeaders(jwt);
   
-  return url + (url.includes('?') ? '&' : '?') + params.toString();
+  if (settings?.sess) headers.sess = settings.sess;
+  if (settings?.cookie) headers.cookie = settings.cookie;
+  
+  const config = {
+    ...options,
+    headers: {
+      ...headers,
+      ...options.headers
+    }
+  };
+  
+  logRequest(options.method || 'GET', url, config.headers, options.body);
+  
+  let retryCount = 0;
+  while (retryCount <= MAX_RETRY_TIMES) {
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Unexpected response format');
+      }
+      
+      const text = await response.text();
+      const data = JSON.parse(text);
+      
+      logResponse(url, data);
+      return data;
+      
+    } catch (error) {
+      if (retryCount === MAX_RETRY_TIMES) throw error;
+      retryCount++;
+      await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+    }
+  }
 };
 
 export const fetchSongs = async () => {
   try {
-    const activeSettings = await getActiveSettings();
-    let url = 'https://suno.deno.dev/all-songs';
-    url = await appendAuthParams(url, activeSettings || {});
-    const response = await fetch(url);
-    const data = await response.json();
-    return data.songs.map(song => ({
+    const data = await makeRequest(`${BASE_URL}/api/feed/`);
+    return data.map(song => ({
       id: song.id,
-      title: song.title || song.metadata.prompt || 'Untitled',
+      title: song.title || song.metadata?.prompt || 'Untitled',
       artist: song.display_name,
-      subtitle: song.metadata.tags,
+      subtitle: song.metadata?.tags,
       image_url: song.image_url,
       audio_url: song.audio_url,
       video_url: song.video_url,
@@ -95,109 +150,56 @@ export const fetchSongs = async () => {
   }
 };
 
-export const generateSong = async (requestData) => {
-  try {
-    const activeSettings = await getActiveSettings();
-    let url = 'https://suno.deno.dev/generate';
-    url = await appendAuthParams(url, activeSettings || {});
-    const jwt = await getFreshJWT();
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${jwt}`
-      },
-      body: JSON.stringify(requestData),
-    });
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('Error:', error);
-    throw error;
-  }
+// ... [Rest of the API functions remain the same]
+
+export const generateSong = async (payload) => {
+  return await makeRequest(`${BASE_URL}/api/generate/v2/`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
 };
 
 export const getSongMetadata = async (ids) => {
-  try {
-    const activeSettings = await getActiveSettings();
-    let url = `https://suno.deno.dev/metadata?ids=${ids}`;
-    url = await appendAuthParams(url, activeSettings || {});
-    const jwt = await getFreshJWT();
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${jwt}`
-      }
-    });
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('Error:', error);
-    throw error;
-  }
+  const params = ids.length ? `?ids=${ids.join(",")}` : "";
+  return await makeRequest(`${BASE_URL}/api/feed/${params}`);
 };
 
-export const searchSongs = async (query, style) => {
-  try {
-    const activeSettings = await getActiveSettings();
-    let url = `https://suno.deno.dev/search?query=${encodeURIComponent(query)}&style=${encodeURIComponent(style)}`;
-    url = await appendAuthParams(url, activeSettings || {});
-    const jwt = await getFreshJWT();
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${jwt}`
-      }
-    });
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('Error searching songs:', error);
-    throw error;
-  }
-};
-
-export const generateLyrics = async (prompt) => {
-  try {
-    const activeSettings = await getActiveSettings();
-    let url = `https://suno.deno.dev/generate-lyrics`;
-    url = await appendAuthParams(url, activeSettings || {});
-    const jwt = await getFreshJWT();
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${jwt}`
-      },
-      body: JSON.stringify({ prompt }),
-    });
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('Error generating lyrics:', error);
-    throw error;
-  }
+export const searchSongs = async (term, fromIndex = 0, rankBy = "trending") => {
+  const payload = {
+    search_queries: [{
+      name: `public_song${term}`,
+      search_type: "public_song",
+      term,
+      from_index: fromIndex,
+      rank_by: rankBy
+    }]
+  };
+  
+  const data = await makeRequest(`${BASE_URL}/api/search/`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+  
+  const result = data?.result[`public_song${term}`] || {};
+  return {
+    from_index: result.from_index || 0,
+    page_size: result.page_size || 20,
+    songs: result.songs || []
+  };
 };
 
 export const fetchPlaylist = async (playlistId, page = 1) => {
-  try {
-    const activeSettings = await getActiveSettings();
-    let url = `https://suno.deno.dev/playlist?id=${playlistId}&page=${page}`;
-    url = await appendAuthParams(url, activeSettings || {});
-    const jwt = await getFreshJWT();
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${jwt}`
-      }
-    });
-    const data = await response.json();
-    
-    if (playlistId === 'me') {
-      return {
+  const data = await makeRequest(
+    `${BASE_URL}/api/playlist/${playlistId}?page=${page}`
+  );
+  
+  return playlistId === 'me' 
+    ? {
         playlists: data.playlists,
         num_total_results: data.num_total_results,
         current_page: data.current_page
-      };
-    } else {
-      return {
+      }
+    : {
         id: data.id,
         name: data.name,
         description: data.description,
@@ -205,14 +207,25 @@ export const fetchPlaylist = async (playlistId, page = 1) => {
         user_display_name: data.user_display_name,
         playlist_clips: data.playlist_clips
       };
-    }
+};
+
+export const fetchNotifications = async () => {
+  try {
+    const data = await makeRequest(`${BASE_URL}/api/notifications`);
+    return data;
   } catch (error) {
-    console.error('Error fetching playlist:', error);
+    console.error('Error fetching notifications:', error);
     throw error;
   }
 };
 
-// Comment: The main changes are in the getFreshJWT function.
-// We now store the JWT in AsyncStorage after fetching it from Clerk.
-// If fetching from Clerk fails, we attempt to use the stored JWT as a fallback.
-// This ensures we always have a JWT to use, improving reliability and performance.
+export const markNotificationAsRead = async (notificationId) => {
+  try {
+    await makeRequest(`${BASE_URL}/api/notifications/${notificationId}/read`, {
+      method: 'POST'
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    throw error;
+  }
+};

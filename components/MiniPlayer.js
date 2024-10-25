@@ -42,7 +42,7 @@ const ScrollingText = ({ text, style }) => {
       <Animated.Text
        ref={textRef} style={[ style,
         { transform: [{ translateX }], 
-      width: 200,
+      width: 800,
       
         }, 
         ]} 

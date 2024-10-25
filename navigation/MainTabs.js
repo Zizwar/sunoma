@@ -14,6 +14,8 @@ import ProfileScreen from '../screens/ProfileScreen';
 import CentralScreen from '../screens/CentralScreen';
 import MeScreen from '../screens/MeScreen';
 import NetworkLogsScreen from '../screens/NetworkLogsScreen';
+import { NotificationIcon, NotificationsModal } from '../components/NotificationsComponent';
+
 
 
 const Tab = createBottomTabNavigator();
@@ -38,6 +40,8 @@ const MeLibraryStack = () => (
   </Stack.Navigator>
 );
 const MainTabs = () => {
+const [notificationsVisible, setNotificationsVisible] = React.useState(false);
+
   const { t } = useTranslation();
 
   return (
