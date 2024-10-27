@@ -16,6 +16,8 @@ import { startBackgroundAudio } from './utils/BackgroundAudioTask';
 import MiniPlayer from './components/MiniPlayer';
 import PlayerModal from './components/PlayerModal';
 import WebAudioPlayer from './components/WebAudioPlayer';
+import { NotificationIcon, NotificationsModal } from './components/NotificationsComponent';
+
 
 import MainTabs from './navigation/MainTabs';
 import DownloadScreen from './screens/DownloadScreen';
@@ -43,6 +45,8 @@ const AppContent = () => {
   const [isWebAudioMode, setIsWebAudioMode] = useState(false);
   const [webViewRef, setWebViewRef] = useState(null);
   const [appIsReady, setAppIsReady] = useState(false);
+const [notificationsVisible, setNotificationsVisible] = useState(false);
+ 
 
   useKeepAwake();
 
@@ -199,6 +203,21 @@ const AppContent = () => {
                     ),
                     headerRight: () => (
                       <View style={{ flexDirection: 'row' }}>
+
+    
+        <NotificationIcon 
+          onPress={() => setNotificationsVisible(true)} 
+          unreadCount={2} // You might want to make this dynamic
+        />
+        <TouchableOpacity onPress={() => navigation.navigate('Search')} style={{ marginLeft: 15 }}>
+          <Icon name="search" size={24} color="#000" />
+        </TouchableOpacity>
+      
+
+
+
+
+
                         <TouchableOpacity onPress={() => navigation.navigate('Explore')} style={{ marginRight: 15 }}>
                           <Icon name="search" type="material" size={24} color={isDarkMode ? '#ffffff' : '#000000'} />
                         </TouchableOpacity>
@@ -251,6 +270,11 @@ const AppContent = () => {
                 )}
               </View>
             </NavigationContainer>
+<NotificationsModal 
+        visible={notificationsVisible}
+        onClose={() => setNotificationsVisible(false)}
+      />
+
             <PlayerModal
               visible={playerModalVisible}
               onClose={togglePlayerModal}

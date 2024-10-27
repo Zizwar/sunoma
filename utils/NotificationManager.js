@@ -45,7 +45,7 @@ export const createPlayerNotification = async (song, isPlaying) => {
 
 export const updateNotificationForBackground = async (song, isPlaying) => {
   const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
-  
+  //return;
   if (notificationsEnabled !== 'true') {
     return; // Don't update notification if disabled
   }
