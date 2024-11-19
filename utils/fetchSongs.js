@@ -161,7 +161,7 @@ export const generateSong = async (payload) => {
 
 export const getSongMetadata = async (ids) => {
   const params = ids.length ? `?ids=${ids.join(",")}` : "";
-  return await makeRequest(`${BASE_URL}/api/feed/${params}`);
+  return await makeRequest(`${BASE_URL}/api/feed${params}`);
 };
 
 export const searchSongs = async (term, fromIndex = 0, rankBy = "trending") => {

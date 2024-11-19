@@ -20,7 +20,6 @@
       }
     },
     "android": {
-  
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -85,7 +84,8 @@
             "backgroundMode": "playback"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

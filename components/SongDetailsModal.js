@@ -27,7 +27,7 @@ const SongDetailsModal = ({ visible, song, onClose, theme }) => {
   const fetchMetadata = async () => {
     try {
       setLoading(true);
-      const data = await getSongMetadata(song.id);
+      const data = await getSongMetadata([song.id]);
       if (data && data.metadata && data.metadata.length > 0) {
         setMetadata(data.metadata[0]);
       }

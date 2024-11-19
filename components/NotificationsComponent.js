@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   SafeAreaView
 } from 'react-native';
 import { Icon } from 'react-native-elements';
+import { AudioContext } from '../App';
+import { getSongMetadata } from '../utils/fetchSongs';
 
 const NotificationIcon = ({ onPress, unreadCount = 0 }) => (
   <TouchableOpacity style={styles.iconContainer} onPress={onPress}>
@@ -22,9 +24,15 @@ const NotificationIcon = ({ onPress, unreadCount = 0 }) => (
   </TouchableOpacity>
 );
 
-const NotificationItem = ({ notification }) => {
+const NotificationItem = ({ notification, onSongPress }) => {
   const { notification_type, user_profiles, created_at, react_content, is_read } = notification;
   
+  const handleContentPress = async () => {
+    if (notification_type === 'clip_like' && react_content?.id) {
+      onSongPress(react_content.id);
+    }
+  };
+
   const getNotificationContent = () => {
     const user = user_profiles[0];
     const userInfo = `${user.display_name} (${user.handle})`;
@@ -66,11 +74,18 @@ const NotificationItem = ({ notification }) => {
         </View>
         <Text style={styles.notificationText}>{content.message}</Text>
         {react_content?.image_url && (
-          <Image 
-            source={{ uri: react_content.image_url }} 
-            style={styles.contentImage}
-            resizeMode="cover"
-          />
+          <TouchableOpacity onPress={handleContentPress}>
+            <Image 
+              source={{ uri: react_content.image_url }} 
+              style={styles.contentImage}
+              resizeMode="cover"
+            />
+            {notification_type === 'clip_like' && (
+              <View style={styles.playOverlay}>
+                <Icon name="play-circle-filled" size={40} color="white" />
+              </View>
+            )}
+          </TouchableOpacity>
         )}
         {user_profiles[0].is_following !== undefined && (
           <View style={styles.followStatus}>
@@ -92,8 +107,8 @@ const NotificationItem = ({ notification }) => {
 const NotificationsModal = ({ visible, onClose }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const { setCurrentSong, setMiniPlayerVisible } = useContext(AudioContext);
 
-  // Dummy data for testing - replace with actual API call
   const dummyNotificationsData = {
     "notified_at": "2024-10-24T21:24:09.629Z",
     "notifications": [
@@ -143,6 +158,20 @@ const NotificationsModal = ({ visible, onClose }) => {
     }
   }, [visible]);
 
+
+  const handleSongPress = async (songId) => {
+    try {
+      const metadata = await getSongMetadata([songId]);
+      if (metadata?.metadata?.[0]) {
+        setCurrentSong(metadata.metadata[0]);
+        setMiniPlayerVisible(true);
+        onClose(); // Close notifications modal after playing
+      }
+    } catch (error) {
+      console.error('Error loading song:', error);
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -159,7 +188,12 @@ const NotificationsModal = ({ visible, onClose }) => {
         </View>
         <FlatList
           data={notifications}
-          renderItem={({ item }) => <NotificationItem notification={item} />}
+          renderItem={({ item }) => (
+            <NotificationItem 
+              notification={item} 
+              onSongPress={handleSongPress}
+            />
+          )}
           keyExtractor={item => item.id}
           refreshing={loading}
           onRefresh={() => {
@@ -179,7 +213,21 @@ const NotificationsModal = ({ visible, onClose }) => {
   );
 };
 
+
+
+
 const styles = StyleSheet.create({
+playOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
   iconContainer: {
     position: 'relative',
     padding: 8,
