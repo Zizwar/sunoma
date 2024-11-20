@@ -234,6 +234,7 @@ if (this.sound) {
   }
 
   async updateNotification() {
+        return;
     if (this.currentSong) {
       await Notifications.scheduleNotificationAsync({
         content: {

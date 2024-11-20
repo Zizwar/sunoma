@@ -1,3 +1,4 @@
+// utils/NotificationManager.js
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -9,46 +10,37 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export const setupNotifications = async () => {
-  await Notifications.requestPermissionsAsync();
-};
+let currentNotificationId = null;
 
 export const createPlayerNotification = async (song, isPlaying) => {
-//	return;
+      return;
   const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
-  
-  if (notificationsEnabled === 'true') {
-    return; // Don't create notification if disabled
+  if (notificationsEnabled !== 'true') return;
+
+  // Cancel previous notification if it exists
+  if (currentNotificationId) {
+    await Notifications.dismissNotificationAsync(currentNotificationId);
   }
 
-  const buttons = [
-    {
-      text: isPlaying ? 'Pause' : 'Play',
-      onPress: () => console.log('Play/Pause pressed'),
-    },
-    {
-      text: 'Next',
-      onPress: () => console.log('Next pressed'),
-    },
-  ];
-
-  await Notifications.scheduleNotificationAsync({
+  // Create new notification
+  const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
       title: song.title,
       body: song.artist,
       data: { currentSong: song },
-      actions: buttons,
+      actions: [
+        {
+          text: isPlaying ? 'Pause' : 'Play',
+          identifier: 'PLAY_PAUSE'
+        },
+        {
+          text: 'Next',
+          identifier: 'NEXT'
+        }
+      ]
     },
-    trigger: null,
+    trigger: null
   });
-};
 
-export const updateNotificationForBackground = async (song, isPlaying) => {
-  const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
-  //return;
-  if (notificationsEnabled !== 'true') {
-    return; // Don't update notification if disabled
-  }
-
-  await createPlayerNotification(song, isPlaying);
+  currentNotificationId = notificationId;
 };

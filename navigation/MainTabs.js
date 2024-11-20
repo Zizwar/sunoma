@@ -11,9 +11,9 @@ import CreateSongScreen from '../screens/CreateSongScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import PlaylistDetailsScreen from '../screens/PlaylistDetailsScreen';
 import ProfileScreen from '../screens/ProfileScreen'; 
-import CentralScreen from '../screens/CentralScreen';
+//import CentralScreen from '../screens/CentralScreen';
 import MeScreen from '../screens/MeScreen';
-import NetworkLogsScreen from '../screens/NetworkLogsScreen';
+//import NetworkLogsScreen from '../screens/NetworkLogsScreen';
 import { NotificationIcon, NotificationsModal } from '../components/NotificationsComponent';
 
 
@@ -60,9 +60,12 @@ const [notificationsVisible, setNotificationsVisible] = React.useState(false);
             iconName = focused ? 'book' : 'book-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
-          }else if (route.name === 'Central') {
-            iconName = focused ? 'code' : 'code-outline';
           }
+          /*else if (route.name === 'Central') {
+            iconName = focused ? 'code' : 'code-outline';
+            }
+            */
+          
 
           return <Icon name={iconName} type="ionicon" size={size} color={color} />;
         },
@@ -103,11 +106,13 @@ const [notificationsVisible, setNotificationsVisible] = React.useState(false);
           tabBarLabel: t('melibrary'),
         }} 
       />
+      {/*
    <Stack.Screen name="Central" component={CentralScreen} options={{ 
           title: t('central'),
           tabBarLabel: t('central'),
         }} />
 <Stack.Screen name="NetworkLogs" component={NetworkLogsScreen} options={{ title: 'Network Logs' }} />
+*/}
        <Stack.Screen name="Profile" component={ProfileScreen} options={{ 
           title: t('profile'),
           tabBarLabel: t('profile'),
