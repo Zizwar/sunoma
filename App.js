@@ -201,14 +201,11 @@ const [notificationsVisible, setNotificationsVisible] = useState(false);
                         <Icon name="menu" type="material" size={24} color={isDarkMode ? '#ffffff' : '#000000'} />
                       </TouchableOpacity>
                     ),
-                    headerRight: () => (
+                   headerRight: () => (
                       <View style={{ flexDirection: 'row' }}>
 
     
-        <NotificationIcon 
-          onPress={() => setNotificationsVisible(true)} 
-          unreadCount={2} // You might want to make this dynamic
-        />
+        
         <TouchableOpacity onPress={() => navigation.navigate('Search')} style={{ marginLeft: 15 }}>
           <Icon name="search" size={24} color="#000" />
         </TouchableOpacity>
@@ -218,9 +215,7 @@ const [notificationsVisible, setNotificationsVisible] = useState(false);
 
 
 
-                        <TouchableOpacity onPress={() => navigation.navigate('Explore')} style={{ marginRight: 15 }}>
-                          <Icon name="search" type="material" size={24} color={isDarkMode ? '#ffffff' : '#000000'} />
-                        </TouchableOpacity>
+                        
                         <TouchableOpacity onPress={toggleWebAudioMode} style={{ marginRight: 15 }}>
                           <Icon
                             name= "speaker"
@@ -253,6 +248,10 @@ const [notificationsVisible, setNotificationsVisible] = useState(false);
                             />
                           </TouchableOpacity>
                         )}
+                        <NotificationIcon 
+          onPress={() => setNotificationsVisible(true)} 
+          unreadCount={2} // You might want to make this dynamic
+        />
                       </View>
                     ),
                   })}>
