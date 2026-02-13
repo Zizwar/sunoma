@@ -1,0 +1,4 @@
+interface:
+  display_name: "Expo 55 Upgrade"
+  short_description: "Upgrade Expo projects to SDK 55 with safe checks"
+  default_prompt: "Use this skill to upgrade the current Expo project to SDK 55, run compatibility checks, and fix common migration issues."
