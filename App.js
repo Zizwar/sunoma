@@ -10,13 +10,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import i18n from './src/i18n';
 import DrawerContent from './navigation/DrawerContent';
 import AudioManager from './utils/AudioManager';
-import { setupNotifications } from './utils/NotificationManager';
 import { ThemeProvider, ThemeContext } from './utils/ThemeContext';
 import { startBackgroundAudio } from './utils/BackgroundAudioTask';
 import MiniPlayer from './components/MiniPlayer';
 import PlayerModal from './components/PlayerModal';
 import WebAudioPlayer from './components/WebAudioPlayer';
-import { NotificationIcon, NotificationsModal } from './components/NotificationsComponent';
 
 
 import MainTabs from './navigation/MainTabs';
@@ -45,7 +43,6 @@ const AppContent = () => {
   const [isWebAudioMode, setIsWebAudioMode] = useState(false);
   const [webViewRef, setWebViewRef] = useState(null);
   const [appIsReady, setAppIsReady] = useState(false);
-const [notificationsVisible, setNotificationsVisible] = useState(false);
  
 
   useKeepAwake();
@@ -54,7 +51,6 @@ const [notificationsVisible, setNotificationsVisible] = useState(false);
     async function prepare() {
       try {
         await SplashScreen.preventAutoHideAsync();
-        await setupNotifications();
         await startBackgroundAudio();
         await AudioManager.initAudioMode();
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -203,12 +199,6 @@ const [notificationsVisible, setNotificationsVisible] = useState(false);
                     ),
                     headerRight: () => (
                       <View style={{ flexDirection: 'row' }}>
-
-    
-        <NotificationIcon 
-          onPress={() => setNotificationsVisible(true)} 
-          unreadCount={2} // You might want to make this dynamic
-        />
         <TouchableOpacity onPress={() => navigation.navigate('Search')} style={{ marginLeft: 15 }}>
           <Icon name="search" size={24} color="#000" />
         </TouchableOpacity>
@@ -270,11 +260,6 @@ const [notificationsVisible, setNotificationsVisible] = useState(false);
                 )}
               </View>
             </NavigationContainer>
-<NotificationsModal 
-        visible={notificationsVisible}
-        onClose={() => setNotificationsVisible(false)}
-      />
-
             <PlayerModal
               visible={playerModalVisible}
               onClose={togglePlayerModal}
