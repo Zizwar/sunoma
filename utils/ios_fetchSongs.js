@@ -1,51 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getFreshJWT } from './getJWT';
 
 const BASE_URL = "https://studio-api.suno.ai";
-const PROXY_URL = "https://suno.deno.dev";
-
-const getActiveSettings = async () => {
-  try {
-    const settings = await AsyncStorage.getItem('settings');
-    const bearerToken = await AsyncStorage.getItem('@bearer');
-    if (settings) {
-      const parsedSettings = JSON.parse(settings);
-      const activeSetting = parsedSettings.find(setting => setting.isActive);
-      if (activeSetting) {
-        return { ...activeSetting, bearerToken };
-      }
-    }
-    return { bearerToken };
-  } catch (error) {
-    console.error('Error getting active settings:', error);
-    return null;
-  }
-};
-
-const getFreshJWT = async () => {
-  try {
-    const clerkResponse = await fetch('https://clerk.suno.com/v1/client?_clerk_js_version=4.73.8');
-    const clerkData = await clerkResponse.json();
-    
-    // Extract the JWT directly from the first response
-    const freshJWT = clerkData.response.sessions[0].last_active_token.jwt;
-    
-    // Store the fresh JWT
-    await AsyncStorage.setItem('@jwt', freshJWT);
-    console.info('New JWT stored');
-    
-    return freshJWT;
-  } catch (error) {
-    console.error('Error fetching fresh JWT:', error);
-    
-    const storedJWT = await AsyncStorage.getItem('@jwt');
-    if (storedJWT) {
-      console.info('Using stored JWT');
-      return storedJWT;
-    }
-    
-    return null;
-  }
-};
 
 const createHeaders = async () => {
   const jwt = await getFreshJWT();

@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getFreshJWT as getSharedJWT } from './getJWT';
 
 const BASE_URL = "https://studio-api.suno.ai";
 const MAX_RETRY_TIMES = 5;
-const VERSION_CLERK = "5.15.0";
 
 class DirectSunoAPI {
   constructor() {
@@ -17,88 +17,17 @@ class DirectSunoAPI {
   async init() {
     await this.refreshAuth();
   }
-async getFreshJWT()  {
-  try {
-    // Step 1: Fetch the Clerk session
-    const clerkResponse = await fetch('https://clerk.suno.com/v1/client?_clerk_js_version=4.73.8');
-    const clerkData = await clerkResponse.json();
-    
-    // Extract the session ID
-    const sessionId = clerkData.response.sessions[0].id;
-const freshJWT = clerkData.response.sessions[0].last_active_token.jwt;
-    // Step 2: Use the session ID to fetch user data and get fresh JWT
-    /*
-    const touchResponse = await fetch(`https://clerk.suno.com/v1/client/sessions/${sessionId}/touch?_clerk_js_version=5.26.1`, {
-      method: 'POST',
-    });
-    const touchData = await touchResponse.json();
-    
-    // Extract JWT
-    const freshJWT = touchData.response.last_active_token.jwt;
-  */  
-    // Store the fresh JWT
-    await AsyncStorage.setItem('@jwt', freshJWT);
-    this.headers.Authorization = `Bearer ${freshJWT}`;
-    return freshJWT;
-  } catch (error) {
-    console.error('Error fetching fresh JWT:', error);
-    
-    // If fetching fresh JWT fails, try to get the stored JWT
-    const storedJWT = await AsyncStorage.getItem('@jwt');
-    if (storedJWT) {
-      console.info('Using stored JWT');
-      return storedJWT;
-    }
-    
-    return null;
+async getFreshJWT() {
+    const jwt = await getSharedJWT();
+    if (jwt) this.headers.Authorization = `Bearer ${jwt}`;
+    return jwt;
   }
-};
   async refreshAuth() {
-    // First, try to get the stored JWT
-    const storedJWT = await AsyncStorage.getItem('@jwt');
-    if (storedJWT) {
-      this.headers.Authorization = `Bearer ${storedJWT}`;
-      console.info('Using stored JWT');
-      return;
-    }
-
-    // If no stored JWT, then try to get from Clerk
-    await this.getNewJWTFromClerk();
+    await this.getFreshJWT();
   }
 
   async getNewJWTFromClerk() {
-    try {
-      // First attempt to get Clerk session
-      const clerkResponse = await fetch('https://clerk.suno.com/v1/client?_clerk_js_version=4.73.8');
-      const clerkData = await clerkResponse.json();
-      
-      // Extract and store session ID
-      const sessionId = clerkData.response.sessions[0].id;
-      await AsyncStorage.setItem('sunoSession', sessionId);
-      
-      console.info("Got session ID:", sessionId);
-
-      // Get JWT using the session ID
-      const touchResponse = await fetch(
-        `https://clerk.suno.com/v1/client/sessions/${sessionId}/touch?_clerk_js_version=5.26.1`,
-        {
-          method: "POST",
-        }
-      );
-      const touchData = await touchResponse.json();
-      
-      const newJWT = touchData.response.last_active_token.jwt;
-      if (newJWT) {
-        this.headers.Authorization = `Bearer ${newJWT}`;
-        await AsyncStorage.setItem('@jwt', newJWT);
-        console.info('Got new JWT from Clerk');
-      } else {
-        throw new Error('No JWT in Clerk response');
-      }
-    } catch (error) {
-      console.error("Error getting new JWT from Clerk:", error);
-      throw error;
-    }
+    return this.getFreshJWT();
   }
 
   async ensureAuth() {
@@ -108,8 +37,7 @@ const freshJWT = clerkData.response.sessions[0].last_active_token.jwt;
   }
 
   async makeAuthenticatedRequest(url, options = {}) {
-        const JWT = this.getFreshJWT();
-    //await this.ensureAuth();
+    const JWT = await this.getFreshJWT();
     this.headers.Authorization = `Bearer ${JWT}`;
     const response = await fetch(url, {
       ...options,
@@ -137,33 +65,7 @@ const freshJWT = clerkData.response.sessions[0].last_active_token.jwt;
   }
 
   async touch() {
-    try {
-      // First attempt to get Clerk session
-      const clerkResponse = await fetch('https://clerk.suno.com/v1/client?_clerk_js_version=4.73.8');
-      const clerkData = await clerkResponse.json();
-      const sessionId = clerkData.response.sessions[0].id;
-
-      const touchResponse = await fetch(
-        `https://clerk.suno.com/v1/client/sessions/${sessionId}/touch?_clerk_js_version=5.26.1`,
-        {
-          method: "POST",
-        }
-      );
-      
-      if (!touchResponse.ok) throw new Error("Failed to get touch clerk");
-      const data = await touchResponse.json();
-      
-      // Store JWT from touch response
-      const jwt = data.response.last_active_token.jwt;
-      if (jwt) {
-        await AsyncStorage.setItem('@jwt', jwt);
-      }
-      
-      return data;
-    } catch (error) {
-      console.error("Error in touch:", error);
-      throw error;
-    }
+    return this.getFreshJWT();
   }
 
   async playlist(id, page = 1, show_trashed = false) {

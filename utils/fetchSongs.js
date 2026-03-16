@@ -1,19 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { getFreshJWT } from './getJWT';
 
 const BASE_URL = "https://studio-api.suno.ai";
 const MAX_RETRY_TIMES = 5;
 
-// Simple logging for requests and responses only
-const logRequest = (method, url, headers, body) => {
-  console.warn('🌐 Request:', { method, url, headers, body });
-};
-
-const logResponse = (url, data) => {
-  console.log('📥 Response:', { url, data });
-};
-
-// Get active settings with bearer token
 const getActiveSettings = async () => {
   try {
     const settings = await AsyncStorage.getItem('settings');
@@ -21,13 +12,10 @@ const getActiveSettings = async () => {
     if (settings) {
       const parsedSettings = JSON.parse(settings);
       const activeSetting = parsedSettings.find(setting => setting.isActive);
-      if (activeSetting) {
-        return { ...activeSetting, bearerToken };
-      }
+      if (activeSetting) return { ...activeSetting, bearerToken };
     }
     return { bearerToken };
   } catch (error) {
-    console.error('Error getting active settings:', error);
     return null;
   }
 };
@@ -37,53 +25,10 @@ const getDefaultHeaders = (jwt = null) => ({
   'Content-Type': 'application/json',
   'User-Agent': Platform.select({
     android: 'okhttp/4.9.2',
-    ios: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15'
+    ios: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
   }),
   ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {})
 });
-
-const getFreshJWT = async () => {
-  try {
-    // First get the session ID
-    const clerkResponse = await fetch(
-      'https://clerk.suno.com/v1/client?_clerk_js_version=4.73.8',
-      { headers: getDefaultHeaders() }
-    );
-    
-    if (!clerkResponse.ok) {
-      throw new Error(`Clerk response not OK: ${clerkResponse.status}`);
-    }
-    
-    const clerkData = await clerkResponse.json();
-    const sessionId = clerkData.response.sessions[0].id;
-    await AsyncStorage.setItem('sessionId', sessionId);
-    
-    // Then get the JWT
-    const touchResponse = await fetch(
-      `https://clerk.suno.com/v1/client/sessions/${sessionId}/touch?_clerk_js_version=5.26.1`,
-      {
-        method: 'POST',
-        headers: getDefaultHeaders()
-      }
-    );
-    
-    if (!touchResponse.ok) {
-      throw new Error(`Touch response not OK: ${touchResponse.status}`);
-    }
-    
-    const touchData = await touchResponse.json();
-    const jwt = touchData.response.last_active_token.jwt;
-    
-    await AsyncStorage.setItem('@jwt', jwt);
-    return jwt;
-    
-  } catch (error) {
-    console.error('Error getting fresh JWT:', error);
-    const storedJWT = await AsyncStorage.getItem('@jwt');
-    if (storedJWT) return storedJWT;
-    return null;
-  }
-};
 
 const makeRequest = async (url, options = {}) => {
   const settings = await getActiveSettings();
@@ -150,7 +95,23 @@ export const fetchSongs = async () => {
   }
 };
 
-// ... [Rest of the API functions remain the same]
+export const generateLyrics = async (prompt) => {
+  const initData = await makeRequest(`${BASE_URL}/api/generate/lyrics/`, {
+    method: 'POST',
+    body: JSON.stringify({ prompt })
+  });
+  const id = initData?.id;
+  if (!id) throw new Error('Failed to start lyrics generation');
+
+  let retries = 0;
+  while (retries < 10) {
+    const result = await makeRequest(`${BASE_URL}/api/generate/lyrics/${id}`);
+    if (result.status === 'complete') return result;
+    retries++;
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+  throw new Error('Lyrics generation timed out');
+};
 
 export const generateSong = async (payload) => {
   return await makeRequest(`${BASE_URL}/api/generate/v2/`, {

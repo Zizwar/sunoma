@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, RefreshCon
 import { useTheme } from 'react-native-elements';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getFreshJWT } from '../utils/getJWT';
 
 const ProfileComponent = ({ isVisible, onClose }) => {
   const { theme } = useTheme();
@@ -15,33 +16,15 @@ const ProfileComponent = ({ isVisible, onClose }) => {
     setLoading(true);
     setError(null);
     try {
-      // Step 1: Fetch the Clerk session
-      const clerkResponse = await fetch('https://clerk.suno.com/v1/client?_clerk_js_version=4.73.8');
-      const clerkData = await clerkResponse.json();
-      
-      // Extract and store the session ID
-      const sessionId = clerkData.response.sessions[0].id;
-      await AsyncStorage.setItem('sessionId', sessionId);
-      
-      console.info("Session ID:", sessionId);
-
-      // Step 2: Use the session ID to fetch user data
-      const touchResponse = await fetch(`https://clerk.suno.com/v1/client/sessions/${sessionId}/touch?_clerk_js_version=5.26.1`, {
-        method: 'POST',
+      await getFreshJWT();
+      const [image, name, handle] = await AsyncStorage.multiGet([
+        'profileImage', 'profileName', 'profileHandle'
+      ]);
+      setProfileData({
+        profile_image_url: image[1],
+        first_name: name[1],
+        handle: handle[1],
       });
-      const touchData = await touchResponse.json();
-      
-      // Extract user data from the touch response
-      const userData = touchData.response.user;
-      setProfileData(userData);
-
-      // Store JWT
-      const jwt = touchData.response.last_active_token.jwt;
-      await AsyncStorage.setItem('jwt', jwt);
-
-      console.info("Fetched user data:", JSON.stringify(userData, null, 2));
-      console.info("JWT:", jwt);
-
     } catch (error) {
       console.error('Error fetching profile data:', error);
       setError('Failed to fetch profile data. Please try again.');

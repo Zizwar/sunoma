@@ -1,24 +1,32 @@
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+// expo-notifications push tokens are not supported in Expo Go since SDK 53
+const isExpoGo = Constants.executionEnvironment === 'storeClient';
+
+if (!isExpoGo) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 export const setupNotifications = async () => {
+  if (isExpoGo) return;
   await Notifications.requestPermissionsAsync();
 };
 
 export const createPlayerNotification = async (song, isPlaying) => {
-//	return;
+  if (isExpoGo) return;
+
   const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
-  
+
   if (notificationsEnabled === 'true') {
-    return; // Don't create notification if disabled
+    return;
   }
 
   const buttons = [
@@ -44,10 +52,11 @@ export const createPlayerNotification = async (song, isPlaying) => {
 };
 
 export const updateNotificationForBackground = async (song, isPlaying) => {
+  if (isExpoGo) return;
+
   const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
-  //return;
   if (notificationsEnabled !== 'true') {
-    return; // Don't update notification if disabled
+    return;
   }
 
   await createPlayerNotification(song, isPlaying);

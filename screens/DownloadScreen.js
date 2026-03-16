@@ -4,6 +4,9 @@ import { Input, Button } from 'react-native-elements';
 import { AntDesign, Entypo, FontAwesome } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const BASE_URL = 'https://studio-api.suno.ai';
 
 const DownloadScreen = () => {
   const [url, setUrl] = useState('');
@@ -20,10 +23,16 @@ const DownloadScreen = () => {
   const fetchMetadata = async () => {
     try {
       const id = url.split('/').pop();
-      const response = await fetch(`https://suno.deno.dev/metadata?ids=${id}`);
+      const bearer = await AsyncStorage.getItem('@bearer');
+      const response = await fetch(`${BASE_URL}/api/feed/?ids=${id}`, {
+        headers: {
+          'Authorization': bearer ? `Bearer ${bearer}` : undefined,
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
+        }
+      });
       const data = await response.json();
-      setMetadata(data.metadata[0]);
-      setTitle(data.metadata[0].title);
+      setMetadata(data[0]);
+      setTitle(data[0].title);
     } catch (error) {
       console.error('Error fetching metadata:', error);
       Alert.alert('خطأ', 'فشل في جلب البيانات الوصفية. يرجى المحاولة مرة أخرى.');

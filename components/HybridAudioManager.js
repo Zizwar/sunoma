@@ -1,10 +1,10 @@
-import { Audio } from 'expo-av';
-import { WebView } from 'react-native-webview';
+import { AudioPlayer } from 'expo-audio';
 import { AppState } from 'react-native';
 
 class HybridAudioManager {
   constructor() {
     this.sound = null;
+    this.statusSubscription = null;
     this.webView = null;
     this.currentSong = null;
     this.isPlaying = false;
@@ -46,12 +46,17 @@ class HybridAudioManager {
   async loadAudio(song) {
     this.currentSong = song;
     if (!this.isBackgroundMode) {
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: song.audio_url },
-        { shouldPlay: false },
-        this.onPlaybackStatusUpdate
-      );
-      this.sound = sound;
+      if (this.statusSubscription) {
+        this.statusSubscription.remove();
+        this.statusSubscription = null;
+      }
+      if (this.sound) {
+        this.sound.remove();
+        this.sound = null;
+      }
+      const player = new AudioPlayer({ uri: song.audio_url });
+      this.statusSubscription = player.addListener('playbackStatusUpdate', this.onPlaybackStatusUpdate);
+      this.sound = player;
     }
   }
 
@@ -60,7 +65,7 @@ class HybridAudioManager {
       this.isPlaying ? this.pauseWebAudio() : this.playWebAudio(this.currentSong.audio_url);
     } else {
       if (this.sound) {
-        this.isPlaying ? await this.sound.pauseAsync() : await this.sound.playAsync();
+        this.isPlaying ? this.sound.pause() : this.sound.play();
       }
     }
     this.isPlaying = !this.isPlaying;
@@ -88,21 +93,21 @@ class HybridAudioManager {
 
   async playLocalAudio() {
     if (this.sound) {
-      await this.sound.playAsync();
+      this.sound.play();
     }
   }
 
   async pauseLocalAudio() {
     if (this.sound) {
-      await this.sound.pauseAsync();
+      this.sound.pause();
     }
   }
 
   onPlaybackStatusUpdate = (status) => {
     if (status.isLoaded) {
-      this.position = status.positionMillis;
-      this.duration = status.durationMillis;
-      this.isPlaying = status.isPlaying;
+      this.position = Math.round((status.currentTime ?? 0) * 1000);
+      this.duration = Math.round((status.duration ?? 0) * 1000);
+      this.isPlaying = status.playing ?? false;
     }
   }
 

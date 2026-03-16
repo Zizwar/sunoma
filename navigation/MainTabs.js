@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { TouchableOpacity, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Icon } from 'react-native-elements';
@@ -10,13 +10,7 @@ import SearchScreen from '../screens/SearchScreen';
 import CreateSongScreen from '../screens/CreateSongScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import PlaylistDetailsScreen from '../screens/PlaylistDetailsScreen';
-import ProfileScreen from '../screens/ProfileScreen'; 
-import CentralScreen from '../screens/CentralScreen';
 import MeScreen from '../screens/MeScreen';
-import NetworkLogsScreen from '../screens/NetworkLogsScreen';
-import { NotificationIcon, NotificationsModal } from '../components/NotificationsComponent';
-
-
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -33,15 +27,15 @@ const LibraryStack = () => (
     <Stack.Screen name="PlaylistDetails" component={PlaylistDetailsScreen} options={{ title: 'Playlist' }} />
   </Stack.Navigator>
 );
+
 const MeLibraryStack = () => (
   <Stack.Navigator>
     <Stack.Screen name="Me" component={MeScreen} options={{ headerShown: false }} />
     <Stack.Screen name="PlaylistDetails" component={PlaylistDetailsScreen} options={{ title: 'Playlist' }} />
   </Stack.Navigator>
 );
-const MainTabs = () => {
-const [notificationsVisible, setNotificationsVisible] = React.useState(false);
 
+const MainTabs = () => {
   const { t } = useTranslation();
 
   return (
@@ -49,21 +43,15 @@ const [notificationsVisible, setNotificationsVisible] = React.useState(false);
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
-
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Search') {
             iconName = focused ? 'search' : 'search-outline';
           } else if (route.name === 'LibraryStack') {
             iconName = focused ? 'library' : 'library-outline';
-       }   else if (route.name === 'meLibraryStack') {
+          } else if (route.name === 'MeLibraryStack') {
             iconName = focused ? 'book' : 'book-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
-          }else if (route.name === 'Central') {
-            iconName = focused ? 'code' : 'code-outline';
           }
-
           return <Icon name={iconName} type="ionicon" size={size} color={color} />;
         },
         tabBarActiveTintColor: '#6366F1',
@@ -87,33 +75,17 @@ const [notificationsVisible, setNotificationsVisible] = React.useState(false);
           title: t('create'),
         }}
       />
-      <Tab.Screen 
-        name="LibraryStack" 
-        component={LibraryStack} 
-        options={{ 
-          title: t('library'),
-          tabBarLabel: t('library'),
-        }} 
+      <Tab.Screen
+        name="LibraryStack"
+        component={LibraryStack}
+        options={{ title: t('library'), tabBarLabel: t('library') }}
       />
-        <Tab.Screen 
-        name="MeLibraryStack" 
-        component={MeLibraryStack} 
-        options={{ 
-          title: t('melibrary'),
-          tabBarLabel: t('melibrary'),
-        }} 
+      <Tab.Screen
+        name="MeLibraryStack"
+        component={MeLibraryStack}
+        options={{ title: t('melibrary'), tabBarLabel: t('melibrary') }}
       />
-   <Stack.Screen name="Central" component={CentralScreen} options={{ 
-          title: t('central'),
-          tabBarLabel: t('central'),
-        }} />
-<Stack.Screen name="NetworkLogs" component={NetworkLogsScreen} options={{ title: 'Network Logs' }} />
-       <Stack.Screen name="Profile" component={ProfileScreen} options={{ 
-          title: t('profile'),
-          tabBarLabel: t('profile'),
-        }} />
-     
-            </Tab.Navigator>
+    </Tab.Navigator>
   );
 };
 
@@ -127,10 +99,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 45,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,

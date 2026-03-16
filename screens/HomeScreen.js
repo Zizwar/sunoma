@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect , useCallback} from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, TouchableOpacity, Alert} from 'react-native';
 import { Text, Card, Button, Icon, useTheme } from 'react-native-elements';
-import { AudioContext } from '../App';
+import { AudioContext } from '../utils/AudioContext';
 import SongListItem from '../components/SongListItem';
 import SongDetailsModal from '../components/SongDetailsModal';
 import { fetchSongs } from '../utils/fetchSongs';

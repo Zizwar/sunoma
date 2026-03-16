@@ -6,7 +6,7 @@ import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flat
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AudioManager from '../utils/AudioManager';
 import { getFavorites, removeFavorite, updateFavoritesOrder } from '../utils/favoriteUtils';
-import { AudioContext } from '../App';
+import { AudioContext } from '../utils/AudioContext';
 
 const FavoritesScreen = () => {
   const { t } = useTranslation();

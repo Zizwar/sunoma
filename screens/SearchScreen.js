@@ -12,7 +12,8 @@ import {
 import { Text, useTheme } from 'react-native-elements';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AudioContext } from '../App';
+import { AudioContext } from '../utils/AudioContext';
+import { searchSongs } from '../utils/fetchSongs';
 import SongListItem from '../components/SongListItem';
 import SongDetailsModal from '../components/SongDetailsModal';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,13 +40,7 @@ const SearchScreen = ({ navigation }) => {
 
       setLoading(true);
       try {
-        const activeSettings = await getActiveSettings();
-        const response = await fetch(
-          `https://suno.deno.dev/search?term=${encodeURIComponent(
-            query
-          )}&from_index=${resetResults ? 0 : page}&rank_by=${rankBy}`
-        );
-        const data = await response.json();
+        const data = await searchSongs(query, resetResults ? 0 : page, rankBy);
 
         if (data.songs.length === 0) {
           setHasMore(false);

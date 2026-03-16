@@ -1,91 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Alert } from 'react-native';
-import { Button, Input, Avatar, Text, Icon, useTheme } from 'react-native-elements';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
+import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { Button, Avatar, Text, useTheme } from 'react-native-elements';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-WebBrowser.maybeCompleteAuthSession();
 
 const ProfileScreen = ({ navigation }) => {
   const { theme } = useTheme();
   const [userInfo, setUserInfo] = useState(null);
-
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: '416959722533-6da188n1qdo2nd3al5a6d3u73jd6ilq2.apps.googleusercontent.com',
-    // Add iOS clientId if you have one
-  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadUserInfo();
+    loadProfile();
   }, []);
 
-  useEffect(() => {
-    if (response?.type === 'success') {
-      handleSignInWithGoogle(response.authentication.accessToken);
-    }
-  }, [response]);
-
-  const loadUserInfo = async () => {
+  const loadProfile = async () => {
+    setLoading(true);
     try {
-      const storedUserInfo = await AsyncStorage.getItem('userInfo');
-      if (storedUserInfo) {
-        setUserInfo(JSON.parse(storedUserInfo));
-      }
-    } catch (error) {
-      console.error("Error loading user info:", error);
-    }
-  };
-
-  const handleSignInWithGoogle = async (accessToken) => {
-    try {
-      const userResponse = await fetch(
-        "https://www.googleapis.com/userinfo/v2/me",
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
+      const touchUrl = await AsyncStorage.getItem('@touchUrl');
+      if (touchUrl) {
+        const response = await fetch(touchUrl, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Origin': 'https://suno.com',
+            'Referer': 'https://suno.com/',
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const user = data.response?.user;
+          if (user) {
+            setUserInfo({
+              name: `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim(),
+              handle: user.handle,
+              avatar: user.profile_image_url,
+            });
+          }
         }
-      );
-      const userData = await userResponse.json();
-      
-      const authResponse = await fetch('https://suno.deno.dev/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          email: userData.email,
-          sid: userData.id,
-          name: userData.name
-        })
-      });
-      
-      const authData = await authResponse.json();
-      
-      if (authData.status === "ok") {
-        await AsyncStorage.setItem('userInfo', JSON.stringify(authData.userInfo));
-        await AsyncStorage.setItem('token', authData.token);
-        setUserInfo(authData.userInfo);
       } else {
-        throw new Error("Authentication failed");
+        // fallback to cached values
+        const name = await AsyncStorage.getItem('profileName');
+        const avatar = await AsyncStorage.getItem('profileImage');
+        if (name || avatar) setUserInfo({ name, avatar });
       }
     } catch (error) {
-      console.error("Error during Google sign in:", error);
-      Alert.alert("Sign In Failed", "An error occurred during sign in. Please try again.");
+      console.error('Error loading profile:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      await AsyncStorage.removeItem('userInfo');
-      await AsyncStorage.removeItem('token');
-      setUserInfo(null);
-      Alert.alert("Signed Out", "You have been successfully signed out.");
-    } catch (error) {
-      console.error("Error signing out:", error);
-      Alert.alert("Error", "Failed to sign out. Please try again.");
-    }
-  };
+  if (loading) {
+    return (
+      <View style={[styles.center, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -93,66 +65,51 @@ const ProfileScreen = ({ navigation }) => {
         <Avatar
           rounded
           size="large"
-          source={{ uri: userInfo?.avatar || 'https://via.placeholder.com/150' }}
+          source={userInfo?.avatar ? { uri: userInfo.avatar } : undefined}
+          icon={{ name: 'person', type: 'material' }}
         />
       </View>
       {userInfo ? (
         <>
-          <Text style={[styles.infoText, { color: theme.colors.text }]}>Name: {userInfo.name}</Text>
-          <Text style={[styles.infoText, { color: theme.colors.text }]}>Email: {userInfo.email}</Text>
-          <Button
-            title="Settings"
-            onPress={() => navigation.navigate('Settings')}
-            containerStyle={styles.button}
-            buttonStyle={{ backgroundColor: theme.colors.primary }}
-          />
-          <Button
-            title="Sign Out"
-            onPress={handleSignOut}
-            containerStyle={styles.button}
-            buttonStyle={{ backgroundColor: theme.colors.error }}
-          />
+          {userInfo.name ? (
+            <Text style={[styles.infoText, { color: theme.colors.text }]}>
+              {userInfo.name}
+            </Text>
+          ) : null}
+          {userInfo.handle ? (
+            <Text style={[styles.handle, { color: theme.colors.grey2 }]}>
+              @{userInfo.handle}
+            </Text>
+          ) : null}
         </>
       ) : (
-        <Button
-          title="Sign in with Google"
-          onPress={() => promptAsync()}
-          icon={
-            <Icon
-              name="google"
-              type="font-awesome"
-              size={20}
-              color="white"
-              style={{ marginRight: 10 }}
-            />
-          }
-          containerStyle={styles.googleButton}
-          buttonStyle={{ backgroundColor: '#4285F4' }}
-        />
+        <Text style={[styles.infoText, { color: theme.colors.grey2, textAlign: 'center' }]}>
+          Login via Central screen first
+        </Text>
       )}
+      <Button
+        title="Settings"
+        onPress={() => navigation.navigate('Settings')}
+        containerStyle={styles.button}
+        buttonStyle={{ backgroundColor: theme.colors.primary }}
+      />
+      <Button
+        title="Refresh"
+        onPress={loadProfile}
+        containerStyle={styles.button}
+        type="outline"
+      />
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  avatarContainer: {
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  infoText: {
-    fontSize: 18,
-    marginBottom: 10,
-  },
-  button: {
-    marginVertical: 10,
-  },
-  googleButton: {
-    marginVertical: 10,
-  },
+  container: { flex: 1, padding: 20 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  avatarContainer: { alignItems: 'center', marginVertical: 20 },
+  infoText: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 6 },
+  handle: { fontSize: 15, textAlign: 'center', marginBottom: 10 },
+  button: { marginVertical: 8 },
 });
 
 export default ProfileScreen;

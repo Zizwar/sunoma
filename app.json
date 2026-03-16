@@ -67,14 +67,14 @@
     },
     "plugins": [
       [
-        "expo-av",
+        "expo-audio",
         {
-          "microphonePermission": "Allow Suno to access your microphone.",
-          "android": {
-            "backgroundMode": "playback"
-          }
+          "microphonePermission": "Allow Suno to access your microphone."
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

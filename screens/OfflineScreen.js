@@ -4,7 +4,7 @@ import { Text, useTheme } from 'react-native-elements';
 import { useTranslation } from 'react-i18next';
 import { getOfflineSongs, deleteOfflineSong } from '../utils/offlineUtils';
 import SongListItem from '../components/SongListItem';
-import { AudioContext } from '../App';
+import { AudioContext } from '../utils/AudioContext';
 
 const OfflineScreen = () => {
   const { t } = useTranslation();

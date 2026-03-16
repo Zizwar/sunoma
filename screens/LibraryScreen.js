@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchPlaylist } from '../utils/fetchSongs';
-import { AudioContext } from '../App';
+import { AudioContext } from '../utils/AudioContext';
 
 const LibraryScreen = ({ navigation }) => {
   const { t } = useTranslation();

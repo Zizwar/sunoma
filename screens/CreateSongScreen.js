@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import CreateSongForm from '../components/CreateSongForm';
 import ContinueClipSection from '../components/ContinueClipSection';
 import ControlButtons from '../components/ControlButtons';
-import { generateSong } from '../utils/fetchSongs';
+import { generateSong, generateLyrics } from '../utils/fetchSongs';
 //import { showInterstitialAd } from '../utils/AdManager';
 const CreateSongScreen = ({ navigation, route, isModal = false, onClose }) => {
   const { t } = useTranslation();
@@ -84,17 +84,11 @@ const CreateSongScreen = ({ navigation, route, isModal = false, onClose }) => {
     setIsLoading(true);
     const promptSong = `${inputText300}__${prompt}`;
     try {
-      const response = await fetch(`https://suno.deno.dev/generate-lyrics?prompt=${encodeURIComponent(promptSong)}`);
-      const data = await response.json();
-
-      if (data.lyrics.status === 'complete') {
-        setTitle(data.lyrics.title);
-        setPrompt(data.lyrics.text);
-        setInputModalVisible(false);
-        setInputText300('');
-      } else {
-        Alert.alert(t('error'), t('lyricsGenerationIncomplete'));
-      }
+      const data = await generateLyrics(promptSong);
+      setTitle(data.title);
+      setPrompt(data.text);
+      setInputModalVisible(false);
+      setInputText300('');
     } catch (error) {
       console.error('Error generating lyrics:', error);
       Alert.alert(t('error'), t('lyricsGenerationFailed'));

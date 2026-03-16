@@ -3,7 +3,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Animated, 
 import { useTheme } from 'react-native-elements';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
-import { AudioContext } from '../App';
+import { AudioContext } from '../utils/AudioContext';
 import { toggleFavorite, getFavorites } from '../utils/favoriteUtils';
 import { downloadSong, isSongDownloaded } from '../utils/offlineUtils';
 import SongDetailsModal from './SongDetailsModal';
@@ -40,11 +40,11 @@ const PlayerModal = ({ visible, onClose }) => {
       setOrientation(width > height ? 'landscape' : 'portrait');
     };
 
-    Dimensions.addEventListener('change', updateOrientation);
+    const subscription = Dimensions.addEventListener('change', updateOrientation);
     updateOrientation();
 
     return () => {
-      Dimensions.removeEventListener('change', updateOrientation);
+      subscription.remove();
     };
   }, []);
 

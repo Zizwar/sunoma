@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../utils/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getFreshJWT } from '../utils/getJWT';
 import ProfileComponent from '../components/ProfileComponent';
 
 const DrawerContent = (props) => {
@@ -41,26 +42,11 @@ const DrawerContent = (props) => {
   };
 
   const fetchProfileData = async () => {
-  const jwt = await AsyncStorage.getItem('@bearer');
     try {
-      const response = await fetch('https://suno.deno.dev/touch?jwt='+jwt||null, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          // Add any necessary headers, such as authentication tokens
-        },
-      });
-      const data = await response.json();
-      const userData = data.response.user;
-      
-      const image = userData.profile_image_url;
-      const name = `${userData.first_name} ${userData.last_name}`;
-      
-      setProfileImage(image);
-      setProfileName(name);
-      
-      await AsyncStorage.setItem('profileImage', image);
-      await AsyncStorage.setItem('profileName', name);
+      await getFreshJWT();
+      const [[, image], [, name]] = await AsyncStorage.multiGet(['profileImage', 'profileName']);
+      if (image) setProfileImage(image);
+      if (name) setProfileName(name);
     } catch (error) {
       console.error('Error fetching profile data:', error);
     }
@@ -106,7 +92,7 @@ const DrawerContent = (props) => {
         <DrawerItem
           icon={() => <DrawerItemIcon name="home-outline" />}
           label={t('home')}
-          onPress={() => props.navigation.navigate('Home')}
+          onPress={() => props.navigation.navigate('MainTabs', { screen: 'Home' })}
           labelStyle={[styles.drawerLabel, {color: isDarkMode ? '#ffffff' : '#000000'}]}
         />
 
@@ -114,19 +100,19 @@ const DrawerContent = (props) => {
         <DrawerItem
           icon={() => <DrawerItemIcon name="library-outline" />}
           label={t('myLibrary')}
-          onPress={() => props.navigation.navigate('Library')}
+          onPress={() => props.navigation.navigate('MainTabs', { screen: 'LibraryStack', params: { screen: 'Library' } })}
           labelStyle={[styles.drawerLabel, {color: isDarkMode ? '#ffffff' : '#000000'}]}
         />
         <DrawerItem
           icon={() => <DrawerItemIcon name="search-outline" />}
           label={t('explore')}
-          onPress={() => props.navigation.navigate('Search')}
+          onPress={() => props.navigation.navigate('MainTabs', { screen: 'Search' })}
           labelStyle={[styles.drawerLabel, {color: isDarkMode ? '#ffffff' : '#000000'}]}
         />
         <DrawerItem
           icon={() => <DrawerItemIcon name="add-circle-outline" />}
           label={t('createSong')}
-          onPress={() => props.navigation.navigate('Create')}
+          onPress={() => props.navigation.navigate('MainTabs', { screen: 'Create' })}
           labelStyle={[styles.drawerLabel, {color: isDarkMode ? '#ffffff' : '#000000'}]}
         />
         <DrawerItem

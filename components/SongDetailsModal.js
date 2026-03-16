@@ -3,13 +3,47 @@ import { View, Text, Image, Modal, StyleSheet, ScrollView, TouchableOpacity, Ale
 import { Button, Icon } from 'react-native-elements';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { Video } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
+import Constants from 'expo-constants';
+
+const isExpoGo = Constants.executionEnvironment === 'storeClient';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import { getSongMetadata } from '../utils/fetchSongs';
 
 const { width, height } = Dimensions.get('window');
+
+// Separate component so useVideoPlayer hook is never called conditionally
+const VideoSection = ({ videoUrl, isPlaying, onPlayPause, styles }) => {
+  const player = useVideoPlayer(videoUrl ? { uri: videoUrl } : null);
+
+  useEffect(() => {
+    if (player) {
+      player.loop = true;
+      player.volume = 1.0;
+    }
+  }, [player]);
+
+  useEffect(() => {
+    if (player) {
+      isPlaying ? player.play() : player.pause();
+    }
+  }, [isPlaying, player]);
+
+  return (
+    <TouchableOpacity onPress={onPlayPause} style={styles.videoContainer}>
+      <VideoView player={player} contentFit="contain" style={styles.video} />
+      <Icon
+        name={isPlaying ? 'pause' : 'play'}
+        type="font-awesome"
+        color="#fff"
+        size={50}
+        containerStyle={styles.playIcon}
+      />
+    </TouchableOpacity>
+  );
+};
 
 const SongDetailsModal = ({ visible, song, onClose, theme }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -78,7 +112,7 @@ const SongDetailsModal = ({ visible, song, onClose, theme }) => {
   };
 
   const handleVideoPlayPause = () => {
-    setIsPlaying(!isPlaying);
+    setIsPlaying(prev => !prev);
   };
 
   const copyPromptToClipboard = async () => {
@@ -172,25 +206,19 @@ const SongDetailsModal = ({ visible, song, onClose, theme }) => {
                   </View>
                 </View>
 
-                <TouchableOpacity onPress={handleVideoPlayPause} style={styles.videoContainer}>
-                  <Video
-                    source={{ uri: metadata.video_url }}
-                    rate={1.0}
-                    volume={1.0}
-                    isMuted={false}
-                    resizeMode="contain"
-                    shouldPlay={isPlaying}
-                    isLooping
-                    style={styles.video}
+                {isExpoGo ? (
+                  <View style={styles.videoContainer}>
+                    <Image source={{ uri: metadata.image_large_url }} style={styles.video} resizeMode="contain" />
+                    <Icon name="play-circle" type="font-awesome" color="rgba(255,255,255,0.5)" size={50} containerStyle={styles.playIcon} />
+                  </View>
+                ) : (
+                  <VideoSection
+                    videoUrl={metadata.video_url}
+                    isPlaying={isPlaying}
+                    onPlayPause={handleVideoPlayPause}
+                    styles={styles}
                   />
-                  <Icon
-                    name={isPlaying ? 'pause' : 'play'}
-                    type="font-awesome"
-                    color="#fff"
-                    size={50}
-                    containerStyle={styles.playIcon}
-                  />
-                </TouchableOpacity>
+                )}
               </View>
             </Animated.ScrollView>
           </>

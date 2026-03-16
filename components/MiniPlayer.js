@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { AudioContext } from '../App';
+import { AudioContext } from '../utils/AudioContext';
 import { useTheme } from 'react-native-elements';
 import { toggleFavorite, getFavorites } from '../utils/favoriteUtils';
 

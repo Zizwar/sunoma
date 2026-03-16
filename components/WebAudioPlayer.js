@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useContext } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { AudioContext } from '../App';
+import { AudioContext } from '../utils/AudioContext';
 import AudioManager from '../utils/AudioManager';
 
 const WebAudioPlayer = ({ onReady }) => {

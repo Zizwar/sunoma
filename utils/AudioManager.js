@@ -1,14 +1,11 @@
-import { Audio } from 'expo-av';
-import * as BackgroundFetch from 'expo-background-fetch';
-import * as TaskManager from 'expo-task-manager';
-import * as Notifications from 'expo-notifications';
+import { AudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as FileSystem from 'expo-file-system';
 import { Alert } from 'react-native';
-const BACKGROUND_AUDIO_TASK = 'BACKGROUND_AUDIO_TASK';
 
 class AudioManager {
   constructor() {
     this.sound = null;
+    this.statusSubscription = null;
     this.currentSong = null;
     this.isPlaying = false;
     this.position = 0;
@@ -29,10 +26,7 @@ class AudioManager {
   }
 
   async isLocalAudio(audioUrl) {
-
-return await this.isLocalUri(audioUrl) 
-       
-
+    return await this.isLocalUri(audioUrl);
   }
 
   async setWebAudioMode(isWebAudioMode) {
@@ -65,8 +59,6 @@ return await this.isLocalUri(audioUrl)
     }
   }
 
-  
-
   addListener(listener) {
     this.listeners.add(listener);
   }
@@ -82,13 +74,11 @@ return await this.isLocalUri(audioUrl)
   }
 
   async initAudioMode() {
-    await Audio.setAudioModeAsync({
+    await setAudioModeAsync({
       staysActiveInBackground: true,
-      interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
       shouldDuckAndroid: true,
       playThroughEarpieceAndroid: false,
       allowsRecordingIOS: false,
-      interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
       playsInSilentModeIOS: true,
     });
   }
@@ -111,53 +101,49 @@ return await this.isLocalUri(audioUrl)
   }
 
   async loadAudio(song) {
-    
-
-      
-try {
-
-if (this.sound) {
-        await this.sound.unloadAsync();
+    try {
+      if (this.sound) {
+        if (this.statusSubscription) {
+          this.statusSubscription.remove();
+          this.statusSubscription = null;
+        }
+        this.sound.remove();
+        this.sound = null;
       }
 
-      let source;
       if (!song || (!song.audio_url && !song.localUri)) {
         throw new Error('Invalid song data: missing audio URL');
       }
 
+      let uri;
       if (this.isLocalUri(song.audio_url)) {
-        source = { uri: song.audio_url };
+        uri = song.audio_url;
       } else if (song.localUri) {
-        source = { uri: song.localUri };
+        uri = song.localUri;
       } else {
-        source = { uri: song.audio_url };
+        uri = song.audio_url;
       }
 
-      const soundObject = new Audio.Sound();
-      await soundObject.loadAsync(source, { shouldPlay: false });
-      soundObject.setOnPlaybackStatusUpdate(this.onPlaybackStatusUpdate);
+      const player = new AudioPlayer({ uri });
+      this.statusSubscription = player.addListener('playbackStatusUpdate', this.onPlaybackStatusUpdate);
 
-      this.sound = soundObject;
+      this.sound = player;
       this.currentSong = song;
       this.isPlaying = false;
       this.position = 0;
       this.duration = 0;
 
-      await this.registerBackgroundTask();
-      await this.updateNotification();
       this.emitChange();
     } catch (error) {
       console.error('Error loading audio:', error);
     }
-
-
   }
 
   onPlaybackStatusUpdate(status) {
     if (status.isLoaded) {
-      this.position = status.positionMillis;
-      this.duration = status.durationMillis;
-      this.isPlaying = status.isPlaying;
+      this.position = Math.round((status.currentTime ?? 0) * 1000);
+      this.duration = Math.round((status.duration ?? 0) * 1000);
+      this.isPlaying = status.playing ?? false;
 
       if (status.didJustFinish) {
         this.handleSongEnd();
@@ -184,7 +170,7 @@ if (this.sound) {
   async loadWebAudio(song) {
     try {
       const audioSource = await this.getAudioSource(song);
-      
+
       if (this.webViewRef?.current) {
         this.webViewRef.current.injectJavaScript(`
           (function() {
@@ -202,12 +188,11 @@ if (this.sound) {
           })();
         `);
       }
-      
+
       this.currentSong = song;
       this.isPlaying = false;
       this.position = 0;
       this.duration = 0;
-      this.updateNotification();
       this.emitChange();
     } catch (error) {
       console.error('Error loading web audio:', error);
@@ -233,18 +218,6 @@ if (this.sound) {
     }
   }
 
-  async updateNotification() {
-    if (this.currentSong) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: this.currentSong.title,
-          body: this.currentSong.artist,
-          data: { currentSong: this.currentSong },
-        },
-        trigger: null,
-      });
-    }
-  }
 
   async play() {
     if (this.isWebAudioMode) {
@@ -257,11 +230,10 @@ if (this.sound) {
         `);
       }
     } else if (this.sound) {
-      await this.sound.playAsync();
+      this.sound.play();
     }
     this.isPlaying = true;
     this.emitChange();
-    this.updateNotification();
   }
 
   async pause() {
@@ -275,11 +247,10 @@ if (this.sound) {
         `);
       }
     } else if (this.sound) {
-      await this.sound.pauseAsync();
+      this.sound.pause();
     }
     this.isPlaying = false;
     this.emitChange();
-    this.updateNotification();
   }
 
   async playPause() {
@@ -302,17 +273,21 @@ if (this.sound) {
         `);
       }
     } else if (this.sound) {
-      await this.sound.stopAsync();
+      this.sound.pause();
+      this.sound.seekTo(0);
     }
     this.isPlaying = false;
     this.position = 0;
     this.emitChange();
-    this.updateNotification();
   }
 
   async unloadCurrentAudio() {
+    if (this.statusSubscription) {
+      this.statusSubscription.remove();
+      this.statusSubscription = null;
+    }
     if (this.sound) {
-      await this.sound.unloadAsync();
+      this.sound.remove();
       this.sound = null;
     }
     this.isPlaying = false;
@@ -348,7 +323,7 @@ if (this.sound) {
         `);
       }
     } else if (this.sound) {
-      await this.sound.setPositionAsync(position);
+      this.sound.seekTo(position / 1000);
     }
     this.position = position;
     this.emitChange();
@@ -365,7 +340,7 @@ if (this.sound) {
         `);
       }
     } else if (this.sound) {
-      await this.sound.setVolumeAsync(volume);
+      this.sound.volume = volume;
     }
   }
 
@@ -440,30 +415,13 @@ if (this.sound) {
         `);
       }
     } else if (this.sound) {
-      await this.sound.replayAsync();
+      this.sound.seekTo(0);
+      this.sound.play();
     }
     this.isPlaying = true;
     this.emitChange();
   }
 
-  async registerBackgroundTask() {
-    TaskManager.defineTask(BACKGROUND_AUDIO_TASK, async () => {
-      try {
-        if (this.isPlaying) {
-          // Here you can add logic to update notification or other background operations
-        }
-        return BackgroundFetch.Result.NewData;
-      } catch (error) {
-        return BackgroundFetch.Result.Failed;
-      }
-    });
-
-    await BackgroundFetch.registerTaskAsync(BACKGROUND_AUDIO_TASK, {
-      minimumInterval: 1,
-      stopOnTerminate: false,
-      startOnBoot: true,
-    });
-  }
 }
 
 export default new AudioManager();

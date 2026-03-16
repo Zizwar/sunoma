@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Icon, Overlay, useTheme } from 'react-native-elements';
-import { AudioContext } from '../App';
+import { AudioContext } from '../utils/AudioContext';
 import { useNavigation } from '@react-navigation/native';
 import { toggleFavorite, isFavorite } from '../utils/favoriteUtils';
 import { downloadSong, isSongDownloaded, deleteOfflineSong } from '../utils/offlineUtils';

@@ -11,7 +11,7 @@ import { Text, useTheme } from 'react-native-elements';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchPlaylist } from '../utils/fetchSongs';
-import { AudioContext } from '../App';
+import { AudioContext } from '../utils/AudioContext';
 import SongListItem from '../components/SongListItem';
 
 const MeScreen = ({ navigation }) => {

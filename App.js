@@ -23,10 +23,14 @@ import FavoritesScreen from './screens/FavoritesScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import HelpSupportScreen from './screens/HelpSupportScreen';
 import OfflineScreen from './screens/OfflineScreen';
+import CentralScreen from './screens/CentralScreen';
+import ProfileScreen from './screens/ProfileScreen';
+import NetworkLogsScreen from './screens/NetworkLogsScreen';
 import DynamicSplashScreen from './screens/DynamicSplashScreen';
 import { linking } from './navigation/linking';
 
-export const AudioContext = React.createContext();
+import { AudioContext } from './utils/AudioContext';
+export { AudioContext };
 
 const Drawer = createDrawerNavigator();
 
@@ -199,16 +203,7 @@ const AppContent = () => {
                     ),
                     headerRight: () => (
                       <View style={{ flexDirection: 'row' }}>
-        <TouchableOpacity onPress={() => navigation.navigate('Search')} style={{ marginLeft: 15 }}>
-          <Icon name="search" size={24} color="#000" />
-        </TouchableOpacity>
-      
-
-
-
-
-
-                        <TouchableOpacity onPress={() => navigation.navigate('Explore')} style={{ marginRight: 15 }}>
+                        <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'Search' })} style={{ marginRight: 10 }}>
                           <Icon name="search" type="material" size={24} color={isDarkMode ? '#ffffff' : '#000000'} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={toggleWebAudioMode} style={{ marginRight: 15 }}>
@@ -252,6 +247,9 @@ const AppContent = () => {
                   <Drawer.Screen name="Settings" component={SettingsScreen} />
                   <Drawer.Screen name="HelpSupport" component={HelpSupportScreen} />
                   <Drawer.Screen name="Offline" component={OfflineScreen} />
+                  <Drawer.Screen name="Central" component={CentralScreen} />
+                  <Drawer.Screen name="Profile" component={ProfileScreen} />
+                  <Drawer.Screen name="NetworkLogs" component={NetworkLogsScreen} />
                 </Drawer.Navigator>
                 {audioState.currentSong && miniPlayerVisible && (
                   <View style={styles.miniPlayerContainer}>
